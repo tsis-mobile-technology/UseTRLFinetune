@@ -1,0 +1,9 @@
+korean-llm-env/
+my_korean_finetuned_model/
+my_optimized_model/
+my_continued_model/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
