@@ -4,6 +4,10 @@
 
 1. **"/media/proidea/hdd/Downloads/030.웹데이터_기반_한국어_말뭉치_데이터"를 활용해서 학습용 jsonl을 만드는 코드를 추가하고 나서 실질적으로 추가 학습하기**
 2. **현재는 text기반 학습데이터로만 진행하는데 다양한 포맷의 데이터포맷 1(instruction, output, url), 포맷2(title, subtitle, content, board, writer, write_date, url, source_site)등 으로 하는 코드를 작성**
+2.1. 현재는 학습데이터(text) jsonl 형태만 데이터 생성, 학습, 검증하는 기능임.
+추가 기능 요청:
+1. 데이터포맷 (instruction, output, url) jsonl 을 생성, 학습, 검증 코드 추가
+2. 데이터포맷 (title, subtitle, content, board, writer, write_date, url, source_site) jsonl 을 생성, 학습, 검증 코드 추가  
 3. **학습시 loss을 낮추기 위한 방안 모색**
 
 ---
