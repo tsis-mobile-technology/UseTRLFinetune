@@ -7,6 +7,9 @@ import logging
 import random
 from datetime import datetime
 from datasets import Dataset, DatasetDict
+import re
+import unicodedata
+import emoji
 
 # 로깅 설정
 logging.basicConfig(
@@ -30,17 +33,57 @@ def preprocess_text(text, min_length=100, max_length=10000):
     if not text or not isinstance(text, str):
         return None
     
-    # 공백 정리
-    text = text.strip()
-    
+    # 향상된 텍스트 정리 및 정규화 적용
+    cleaned_text = clean_and_normalize_text(text)
+
+    if not cleaned_text: # 청소 후 텍스트가 비었을 수 있음
+        return None
+
     # 길이 확인
-    if len(text) < min_length:
+    if len(cleaned_text) < min_length:
         return None
     
     # 최대 길이로 자르기
-    if len(text) > max_length:
-        text = text[:max_length]
+    if len(cleaned_text) > max_length:
+        cleaned_text = cleaned_text[:max_length]
     
+    return cleaned_text
+
+def clean_and_normalize_text(text: str, remove_emojis_flag: bool = True) -> str:
+    """
+    텍스트를 정규화하고 청소합니다.
+    - 유니코드 정규화 (NFKC)
+    - 제어 문자 제거 (일부 공백 문자는 유지)
+    - 이모지 제거 또는 텍스트 변환 (현재는 제거)
+    - 공백 정규화 (다중 공백, 탭, 줄바꿈 등)
+    """
+    if not text or not isinstance(text, str):
+        return ""
+
+    # 1. 유니코드 정규화 (NFKC 선호: 호환성 및 더 강력한 정규화)
+    try:
+        text = unicodedata.normalize('NFKC', text)
+    except Exception as e:
+        logger.warning(f"유니코드 정규화 중 오류 발생: {e}. 원본 텍스트 사용.")
+
+    # 2. 제어 문자 제거 (개행(\n), 탭(\t)은 유지하고 나머지는 제거 또는 공백으로 대체)
+    # \x00-\x08, \x0b, \x0c, \x0e-\x1f, \x7f-\x9f (C0, C1 제어 문자 영역)
+    # 개행과 탭을 제외한 제어문자를 공백으로 바꾼 후, 공백 정규화에서 처리
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', ' ', text)
+
+    # 3. 이모지 처리
+    if remove_emojis_flag:
+        text = emoji.replace_emoji(text, replace='') # 이모지 제거
+        # text = emoji.demojize(text, delimiters=(":", ":")) # 텍스트 표현으로 변경 (예: ":smile:")
+
+    # 4. 공백 정규화
+    # 모든 종류의 공백 문자(스페이스, 탭, 개행, 캐리지 리턴, 폼 피드, 수직 탭 등)를 단일 스페이스로 변환
+    text = re.sub(r'\s+', ' ', text)
+    text = text.strip() # 양 끝 공백 최종 제거
+
+    # (선택 사항) 특정 구두점 주변 공백 정규화 (예: 마침표, 쉼표 앞 공백 제거)
+    # text = re.sub(r'\s([?.!,](?:\s|$))', r'\1', text)
+
     return text
 
 def create_dataset_from_texts(texts, split_ratio=0.9):
@@ -320,19 +363,71 @@ def prepare_training_data(dataset, tokenizer, max_length=512, batch_size=8):
 
 if __name__ == "__main__":
     # 테스트 코드
-    test_texts = [
+    print("--- 기존 테스트 시작 ---")
+    test_texts_original = [
         "이것은 한국어 언어 모델 학습을 위한 첫 번째 테스트 데이터입니다. 충분히 긴 텍스트가 필요합니다.",
         "두 번째 테스트 데이터입니다. 이 데이터는 모델이 다양한 문장 구조를 학습하는 데 도움이 됩니다.",
-        "세 번째 테스트 데이터는 조금 더 길게 작성하여 모델이 문맥을 파악하는 능력을 향상시키기 위한 것입니다. 여러 문장으로 구성된 텍스트가 필요합니다."
+        "세 번째 테스트 데이터는 조금 더 길게 작성하여 모델이 문맥을 파악하는 능력을 향상시키기 위한 것입니다. 여러 문장으로 구성된 텍스트가 필요합니다.",
+        "짧은 글입니다." # min_length 테스트용
     ]
     
-    # 데이터셋 생성 테스트
-    dataset = create_dataset_from_texts(test_texts)
+    processed_for_dataset = [preprocess_text(text) for text in test_texts_original]
+    processed_for_dataset = [text for text in processed_for_dataset if text] # None 제거
+
+    dataset = create_dataset_from_texts(processed_for_dataset)
     
     if dataset:
         print(f"학습 데이터셋 크기: {len(dataset['train'])}")
-        print(f"검증 데이터셋 크기: {len(dataset['validation'])}")
+        if len(dataset['validation']) > 0:
+             print(f"검증 데이터셋 크기: {len(dataset['validation'])}")
+             print("첫 번째 검증 데이터:", dataset['validation'][0]['text'] if len(dataset['validation'][0]['text']) > 0 else "비어 있음")
+        else:
+            print("검증 데이터셋이 비어 있습니다.")
+
+        if len(dataset['train']) > 0:
+            print("첫 번째 학습 데이터:", dataset['train'][0]['text'])
+        else:
+            print("학습 데이터셋이 비어 있습니다.")
+
+    print("\n--- 새로운 clean_and_normalize_text 테스트 시작 ---")
+    test_cases_normalization = {
+        "기본": "이것은   \t 여러 공백과 \n줄바꿈이 있는 텍스트입니다.  ",
+        "제어 문자": "텍스트\x00중간에\x08제어문자\x1f가 있습니다.",
+        "이모지": "안녕하세요! 😊 좋은 하루 보내세요 👍🙏",
+        "유니코드 (너비)": "ﾃｷｽﾄ가 있습니다.", # 반각 가타카나
+        "유니코드 (합성)": "한글 자모 합치기: ㄱㅏㄴㅏㄷㅏ", # 자모 분리된 것
+        "모두 포함": " 복잡한 텍스트 \t😅\n\x0c유니코드 ｶ타카나와 제어문자\x1e 포함!  ",
+        "짧은 텍스트": "짧음", # 전처리 후 None이 될 수 있음
+        "공백만": "   \n\t   ",
+        "이모지만": "😁😂😃😄😅😆",
+        "제어문자만": "\x01\x02\x03\x04\x05"
+    }
+
+    for name, text_input in test_cases_normalization.items():
+        print(f"\n--- {name} ---")
+        print(f"원본: '{text_input}' (길이: {len(text_input)})")
+
+        cleaned_no_emoji = clean_and_normalize_text(text_input, remove_emojis_flag=True)
+        print(f"정리됨 (이모지 제거): '{cleaned_no_emoji}' (길이: {len(cleaned_no_emoji)})")
         
-        # 첫 번째 학습 데이터 출력
-        print("첫 번째 학습 데이터:")
-        print(dataset['train'][0]['text'])
+        cleaned_with_emoji_text = clean_and_normalize_text(text_input, remove_emojis_flag=False) # emoji 라이브러리 기본은 제거이므로, False면 유지됨
+                                                                                                # emoji.demojize를 쓰려면 clean_and_normalize_text 수정 필요
+        print(f"정리됨 (이모지 유지): '{cleaned_with_emoji_text}' (길이: {len(cleaned_with_emoji_text)})")
+
+        # preprocess_text를 통해 최소 길이 필터링까지 확인
+        preprocessed_text = preprocess_text(text_input, min_length=5) # 최소 길이를 5로 설정하여 테스트
+        print(f"최종 전처리 (min_length=5): '{preprocessed_text}'")
+
+    print("\n--- preprocess_text 상세 테스트 (min_length=10) ---")
+    test_preprocess_inputs = [
+        "이것은 충분히 긴 한국어 텍스트입니다. 이모지 😂😂😂 와 함께합니다.", # 정상
+        "너무 짧아요", # 짧아서 None
+        "       \n\n\n         ", # 공백만 있어서 None (clean 후 empty)
+        "😂🤣😅😄😁😆😊😋😎😍", # 이모지만 있어서 None (emoji 제거 후 empty)
+        "12345\x01\x02\x03\x04\x0567890", # 제어문자 제거 후 길이 만족
+        "1\x012\x023\x03" # 제어문자 제거 후 짧아서 None
+    ]
+    for i, text_input in enumerate(test_preprocess_inputs):
+        output = preprocess_text(text_input, min_length=10)
+        print(f"입력 {i+1}: '{text_input}'")
+        print(f"  preprocess_text 결과: '{output}'\n")
