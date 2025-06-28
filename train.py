@@ -1,253 +1,470 @@
-import torch
+#!/usr/bin/env python3
+"""
+일반적인 파인튜닝 스크립트 (SFT: Supervised Fine-Tuning)
+continue_train.py의 구조를 참고하여 작성
+"""
+
+import os
 import argparse
-import random
-import numpy as np
 import logging
+import json
+import torch
 from datasets import load_dataset
-from transformers import AutoTokenizer, pipeline, BitsAndBytesConfig, GenerationConfig, AutoModelForCausalLM, PreTrainedModel, PretrainedConfig
-from trl import PPOTrainer, PPOConfig, AutoModelForCausalLMWithValueHead
-from trl.core import LengthSampler
-from peft import LoraConfig
-import traceback
-from tqdm import tqdm
+from transformers import AutoTokenizer, BitsAndBytesConfig, Trainer, TrainingArguments
+from transformers import AutoModelForCausalLM, DataCollatorForLanguageModeling
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 # 로깅 설정
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('train')
 
-def set_seed(seed_value):
-    """모든 랜덤 시드를 고정하는 함수"""
-    random.seed(seed_value)
-    np.random.seed(seed_value)
-    torch.manual_seed(seed_value)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed_value)
+def parse_args():
+    """명령줄 인자 파싱"""
+    parser = argparse.ArgumentParser(description='모델 파인튜닝')
+    
+    # 기본 인자
+    parser.add_argument('--model-name', '--base-model', default='EleutherAI/polyglot-ko-1.3b', 
+                        help='기본 모델 이름 또는 경로')
+    parser.add_argument('--dataset-name', default=None,
+                        help='HuggingFace 데이터셋 이름 (예: maywell/korean_textbooks)')
+    parser.add_argument('--data-path', default=None, 
+                        help='로컬 훈련 데이터 JSONL 파일 경로')
+    parser.add_argument('--output-dir', default='my_finetuned_model', 
+                        help='모델 저장 디렉토리')
+    
+    # 학습 하이퍼파라미터
+    parser.add_argument('--batch-size', type=int, default=4, 
+                        help='배치 크기')
+    parser.add_argument('--epochs', type=int, default=3, 
+                        help='훈련 에포크 수')
+    parser.add_argument('--learning-rate', type=float, default=2e-4, 
+                        help='학습률')
+    parser.add_argument('--max-length', type=int, default=512, 
+                        help='최대 시퀀스 길이')
+    parser.add_argument('--limit-samples', type=int, default=1000, 
+                        help='훈련에 사용할 최대 샘플 수 (메모리 제한)')
+    
+    # LoRA 설정
+    parser.add_argument('--lora-r', type=int, default=64,
+                        help='LoRA r 값 (rank)')
+    parser.add_argument('--lora-alpha', type=int, default=16,
+                        help='LoRA alpha 값')
+    parser.add_argument('--lora-dropout', type=float, default=0.1,
+                        help='LoRA dropout 비율')
+    
+    # 하드웨어 최적화 설정
+    parser.add_argument('--use-8bit', action='store_true',
+                        help='8비트 양자화 사용')
+    parser.add_argument('--use-4bit', action='store_true',
+                        help='4비트 양자화 사용 (더 적은 메모리 사용)')
+    parser.add_argument('--use-fp16', action='store_true',
+                        help='FP16 훈련 사용')
+    
+    # 기타 설정
+    parser.add_argument('--merge-and-save', action='store_true',
+                        help='학습 후 어댑터와 모델 병합해서 저장')
+    
+    return parser.parse_args()
 
-def clear_gpu_cache():
-    """GPU 메모리 캐시를 정리하는 함수"""
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-def parse_arguments():
-    """스크립트 실행을 위한 인자들을 파싱하는 함수"""
-    parser = argparse.ArgumentParser(description="PPO 파인튜닝 스크립트")
-    parser.add_argument("--model_name", type=str, default="EleutherAI/polyglot-ko-1.3b", help="사전 훈련된 모델 이름 또는 경로")
-    parser.add_argument("--output_dir", type=str, default="my_korean_ppo_finetuned_model", help="훈련된 모델 저장 경로")
-    parser.add_argument("--logging_dir", type=str, default="./logs/ppo_tuning", help="TensorBoard 로그 저장 경로")
-    parser.add_argument("--learning_rate", type=float, default=1.41e-5, help="학습률")
-    parser.add_argument("--batch_size", type=int, default=2, help="PPO 배치 크기")
-    parser.add_argument("--mini_batch_size", type=int, default=1, help="PPO 미니 배치 크기")
-    parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="그래디언트 누적 스텝")
-    parser.add_argument("--ppo_epochs", type=int, default=4, help="각 PPO 배치에 대한 최적화 에폭 수")
-    parser.add_argument("--lam", type=float, default=0.95, help="GAE 람다 파라미터")
-    parser.add_argument("--clip_epsilon", type=float, default=0.2, help="PPO 클리핑 엡실론")
-    parser.add_argument("--max_ppo_steps", type=int, default=10, help="총 PPO 훈련 스텝 수")
-    parser.add_argument("--lora_r", type=int, default=64, help="LoRA r 값")
-    parser.add_argument("--lora_alpha", type=int, default=128, help="LoRA alpha 값")
-    parser.add_argument("--lora_dropout", type=float, default=0.1, help="LoRA 드롭아웃")
-    parser.add_argument("--max_new_tokens", type=int, default=8, help="생성할 새 토큰의 최대 수")
-    parser.add_argument("--temperature", type=float, default=0.9, help="생성 시 온도")
-    parser.add_argument("--top_k", type=float, default=0.0, help="생성 시 top_k")
-    parser.add_argument("--top_p", type=float, default=1.0, help="생성 시 top_p")
-    parser.add_argument("--dataset_name", type=str, default="maywell/korean_textbooks", help="사용할 데이터셋 이름")
-    parser.add_argument("--input_min_text_length", type=int, default=5, help="입력 텍스트 최소 길이")
-    parser.add_argument("--input_max_text_length", type=int, default=1024, help="입력 텍스트 최대 길이")
-    parser.add_argument("--dataset_sample_size", type=int, default=20, help="테스트용 데이터셋 샘플 크기")
-    parser.add_argument("--seed", type=int, default=42, help="랜덤 시드")
-    parser.add_argument("--enable_gradient_checkpointing", action="store_true", help="메모리 절약을 위해 gradient checkpointing 활성화")
-    parser.add_argument("--use_8bit_quantization", action="store_true", help="8bit 양자화 사용")
-    parser.add_argument("--max_memory_per_gpu", type=str, default="8GB", help="GPU당 최대 메모리 사용량")
-    args = parser.parse_args()
-    return args
-
-def build_dataset(tokenizer, dataset_name, input_min_text_length, input_max_text_length, sample_size):
-    """데이터셋을 로드하고 PPO 훈련에 맞게 전처리하는 함수"""
-    logger.info(f"'{dataset_name}' 데이터셋을 로드합니다...")
-    if "korean_textbooks" in dataset_name:
-        ds = load_dataset(dataset_name, "normal_instructions", split="train", trust_remote_code=True)
-        if "instruction" in ds.column_names and "output" in ds.column_names:
-            def combine_text(sample):
+def build_dataset_from_hf(dataset_name, tokenizer, max_length=512, limit=None):
+    """
+    HuggingFace 데이터셋에서 데이터셋 구축
+    """
+    logger.info(f"HuggingFace 데이터셋 로드: {dataset_name}")
+    
+    try:
+        # 데이터셋 로드 시도
+        if "korean_textbooks" in dataset_name:
+            ds = load_dataset(dataset_name, "normal_instructions", split="train", trust_remote_code=True)
+            logger.info("korean_textbooks의 normal_instructions 서브셋 로드")
+        else:
+            ds = load_dataset(dataset_name, split="train", trust_remote_code=True)
+        
+        logger.info(f"로드된 데이터셋 크기: {len(ds)}")
+        logger.info(f"데이터셋 컬럼: {ds.column_names}")
+        
+        # 텍스트 필드 찾기 및 전처리
+        text_field = None
+        
+        # korean_textbooks 데이터셋 특별 처리
+        if "korean_textbooks" in dataset_name and "instruction" in ds.column_names and "output" in ds.column_names:
+            def combine_instruction_output(sample):
                 instruction = sample.get("instruction", "") or ""
                 output = sample.get("output", "") or ""
-                sample["review"] = f"{instruction} {output}".strip()
+                combined_text = f"### 질문: {instruction}\n### 답변: {output}"
+                sample["text"] = combined_text
                 return sample
-            ds = ds.map(combine_text)
-        else:
-            logger.warning("'instruction' 또는 'output' 컬럼을 찾을 수 없습니다. 'text' 또는 첫 번째 컬럼을 사용합니다.")
-            if 'text' in ds.column_names:
-                ds = ds.rename_column("text", "review")
-            else:
-                first_col = ds.column_names[0]
-                ds = ds.rename_column(first_col, "review")
-    else:
-        ds = load_dataset(dataset_name, split="train", trust_remote_code=True)
-        if "document" in ds.column_names:
-            ds = ds.rename_column("document", "review")
+            
+            ds = ds.map(combine_instruction_output)
+            text_field = "text"
+            logger.info("instruction과 output을 결합하여 text 필드 생성")
+        
+        # 일반적인 텍스트 필드 찾기
+        if text_field is None:
+            possible_text_fields = ['text', 'content', 'dialogue', 'conversation', 'message', 'document', 'review']
+            
+            for field in possible_text_fields:
+                if field in ds.column_names:
+                    text_field = field
+                    logger.info(f"'{field}' 필드를 텍스트로 사용합니다.")
+                    break
+            
+            if text_field is None:
+                # 첫 번째 열을 텍스트 필드로 사용
+                text_field = ds.column_names[0]
+                logger.warning(f"텍스트 필드를 찾을 수 없어 첫 번째 열 '{text_field}'을 사용합니다.")
+        
+        # 텍스트 필드가 'text'가 아닌 경우 이름 변경
+        if text_field != 'text':
+            ds = ds.rename_column(text_field, 'text')
+        
+        # 필요한 경우 샘플 수 제한
+        if limit and len(ds) > limit:
+            ds = ds.select(range(limit))
+            logger.info(f"데이터셋을 {limit}개 샘플로 제한")
+        
+        # 텍스트 길이 필터링
+        ds = ds.filter(lambda x: x["text"] is not None and len(str(x["text"])) > 20, batched=False)
+        logger.info(f"필터링 후 데이터셋 크기: {len(ds)}")
+        
+        def tokenize_function(examples):
+            # 텍스트 토큰화
+            tokenized = tokenizer(
+                examples["text"], 
+                padding="max_length", 
+                truncation=True, 
+                max_length=max_length,
+                return_tensors="pt"
+            )
+            # labels는 input_ids와 동일하게 설정 (언어모델링)
+            tokenized["labels"] = tokenized["input_ids"].clone()
+            return tokenized
+        
+        # 토큰화 적용
+        tokenized_ds = ds.map(
+            tokenize_function, 
+            batched=True, 
+            remove_columns=ds.column_names
+        )
+        
+        logger.info(f"데이터셋 구축 완료: {len(tokenized_ds)}개 샘플")
+        return tokenized_ds
+        
+    except Exception as e:
+        logger.error(f"데이터셋 로드 중 오류 발생: {e}")
+        raise
+
+def build_dataset_from_jsonl(data_path, tokenizer, max_length=512, limit=None):
+    """
+    JSONL 파일에서 데이터셋 구축 (continue_train.py의 함수 재사용)
+    """
+    logger.info(f"JSONL 파일에서 데이터셋 구축: {data_path}")
     
-    ds = ds.filter(lambda x: x["review"] is not None and len(x["review"]) > 20)
-    ds = ds.select(range(min(sample_size, len(ds))))
-
-    input_size = LengthSampler(input_min_text_length, input_max_text_length)
-
-    def tokenize(sample):
-        prompt = sample["review"][: input_size()]
-        encoding = tokenizer(prompt, truncation=True, max_length=input_max_text_length)
-        sample["input_ids"] = torch.tensor(encoding["input_ids"])
-        sample["attention_mask"] = torch.tensor(encoding["attention_mask"])
-        sample["query"] = tokenizer.decode(sample["input_ids"], skip_special_tokens=True)
-        return sample
-
-    ds = ds.map(tokenize)
-    ds.set_format(type="torch")
-    return ds
-
-# PPOTrainer가 요구하는 형식에 맞춘 보상 모델 클래스
-class RewardModel(PreTrainedModel):
-    config_class = PretrainedConfig
-
-    def __init__(self, config, sentiment_pipeline, tokenizer):
-        super().__init__(config)
-        self.sentiment_pipeline = sentiment_pipeline
-        self.tokenizer = tokenizer
-
-    def forward(self, input_ids, attention_mask=None, **kwargs):
-        device = input_ids.device
-        texts = self.tokenizer.batch_decode(input_ids, skip_special_tokens=True)
-        pipe_outputs = self.sentiment_pipeline(texts, truncation=True, max_length=512)
-        rewards = []
-        for output in pipe_outputs:
-            if output['label'] == 'LABEL_1': # 긍정
-                rewards.append(torch.tensor(output['score'], device=device))
-            else: # 부정
-                rewards.append(torch.tensor(1.0 - output['score'], device=device))
-        return None, torch.stack(rewards)
-
-
-def main():
-    args = parse_arguments()
-    set_seed(args.seed)
-    logger.info(f"Hyperparameters: {args}")
+    # JSONL 파일 로드
+    ds = load_dataset('json', data_files=data_path, split='train')
     
-    # 호환성을 위해 빈 PPOConfig를 생성하고 속성을 수동으로 할당합니다.
-    ppo_config = PPOConfig()
-    ppo_config.learning_rate = args.learning_rate
-    ppo_config.batch_size = args.batch_size
-    ppo_config.mini_batch_size = args.mini_batch_size
-    ppo_config.gradient_accumulation_steps = args.gradient_accumulation_steps
-    ppo_config.ppo_epochs = args.ppo_epochs
-    ppo_config.lam = args.lam
-    ppo_config.clip_epsilon = args.clip_epsilon
-    ppo_config.log_with = "tensorboard"
-    ppo_config.tracker_project_name = "ppo_korean_finetune"
-
-    lora_config = LoraConfig(
-        r=args.lora_r,
-        lora_alpha=args.lora_alpha,
-        lora_dropout=args.lora_dropout,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=["query_key_value", "dense", "dense_h_to_4h", "dense_4h_to_h"]
+    # 필요한 경우 샘플 수 제한
+    if limit and len(ds) > limit:
+        ds = ds.select(range(limit))
+        logger.info(f"데이터셋을 {limit}개 샘플로 제한")
+    
+    # 텍스트 필드 확인
+    if 'text' not in ds.column_names:
+        logger.warning("데이터셋에 'text' 필드가 없습니다. 열 이름을 확인합니다.")
+        logger.info(f"사용 가능한 열: {ds.column_names}")
+        
+        # 가능한 텍스트 필드 이름들
+        possible_text_fields = ['text', 'content', 'dialogue', 'conversation', 'message', 'document']
+        
+        text_field = None
+        for field in possible_text_fields:
+            if field in ds.column_names:
+                text_field = field
+                logger.info(f"'{field}' 필드를 텍스트로 사용합니다.")
+                break
+        
+        if text_field is None:
+            # 첫 번째 열을 텍스트 필드로 사용
+            text_field = ds.column_names[0]
+            logger.warning(f"텍스트 필드를 찾을 수 없어 첫 번째 열 '{text_field}'을 사용합니다.")
+        
+        # 열 이름 변경
+        ds = ds.rename_column(text_field, 'text')
+    
+    # 텍스트 길이 필터링
+    ds = ds.filter(lambda x: len(x["text"]) > 20, batched=False)
+    logger.info(f"필터링 후 데이터셋 크기: {len(ds)}")
+    
+    def tokenize_function(examples):
+        # 텍스트 토큰화
+        tokenized = tokenizer(
+            examples["text"], 
+            padding="max_length", 
+            truncation=True, 
+            max_length=max_length,
+            return_tensors="pt"
+        )
+        # labels는 input_ids와 동일하게 설정 (언어모델링)
+        tokenized["labels"] = tokenized["input_ids"].clone()
+        return tokenized
+    
+    # 토큰화 적용
+    tokenized_ds = ds.map(
+        tokenize_function, 
+        batched=True, 
+        remove_columns=ds.column_names
     )
-    quantization_config = BitsAndBytesConfig(load_in_8bit=True) if args.use_8bit_quantization else None
+    
+    logger.info(f"데이터셋 구축 완료: {len(tokenized_ds)}개 샘플")
+    return tokenized_ds
 
-    # 정책 모델과 가치 모델을 함께 로드합니다.
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(
+def load_base_model(args):
+    """기본 모델 로드 (양자화 옵션 적용)"""
+    logger.info(f"기본 모델 로드: {args.model_name}")
+    
+    # 양자화 설정
+    quantization_config = None
+    if args.use_8bit:
+        quantization_config = BitsAndBytesConfig(
+            load_in_8bit=True
+        )
+    elif args.use_4bit:
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4"
+        )
+    
+    # 모델 로드
+    model = AutoModelForCausalLM.from_pretrained(
         args.model_name,
         quantization_config=quantization_config,
         device_map="auto",
-        max_memory={0: args.max_memory_per_gpu},
-        peft_config=lora_config,
-        torch_dtype=torch.float16,
-        low_cpu_mem_usage=True,
+        torch_dtype=torch.float16 if args.use_fp16 else None,
+        trust_remote_code=True
     )
     
-    # 참조 모델은 학습되지 않으므로, 양자화 없이 원본으로 로드합니다.
-    ref_model = AutoModelForCausalLM.from_pretrained(
-        args.model_name,
-        device_map="auto",
-        max_memory={0: args.max_memory_per_gpu},
-        torch_dtype=torch.float16,
-        low_cpu_mem_usage=True,
-    )
-    logger.info("✅ 참조(ref) 모델 생성 완료 (비양자화)")
+    return model
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    tokenizer.pad_token = tokenizer.eos_token
-
-    def collator(data):
-        batch = {key: [d[key] for d in data] for key in data[0]}
-        return tokenizer.pad(batch, padding=True, return_tensors="pt")
-
-    dataset = build_dataset(tokenizer, args.dataset_name, args.input_min_text_length, args.input_max_text_length, args.dataset_sample_size)
+def detect_target_modules(model):
+    """모델에서 LoRA 타겟 모듈 자동 감지"""
+    logger.info("LoRA 타겟 모듈 감지 중...")
     
-    device = next(model.parameters()).device
-    sentiment_pipe = pipeline("sentiment-analysis", model="monologg/koelectra-base-v3-discriminator", device=device)
-    logger.info(f"✅ Sentiment pipeline을 GPU ({device})에 로드했습니다.")
+    # 일반적인 타겟 모듈 패턴
+    common_patterns = [
+        "query_key_value", "dense_h_to_4h", "dense_4h_to_h", "dense",  # Polyglot
+        "c_attn", "c_proj", "c_fc", "c_proj",  # GPT 스타일
+        "q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj",  # LLaMA 스타일
+        "k_proj", "v_proj", "q_proj", "out_proj", "fc1", "fc2",  # BERT 스타일
+        "attention.self", "attention.output.dense",  # 다른 스타일
+        "linear", "Linear"  # 일반적인 이름
+    ]
     
-    # PPOTrainer 초기화
-    # 최신 TRL은 reward_model을 직접 사용하지 않으므로, None으로 설정할 수 있습니다.
-    # 대신 보상 계산은 학습 루프에서 수동으로 이루어집니다.
-    ppo_trainer = PPOTrainer(
-        config=ppo_config,
-        model=model,
-        ref_model=ref_model,
-        tokenizer=tokenizer,
-        dataset=dataset,
-        data_collator=collator,
-    )
-
-    logger.info("✅ PPOTrainer 생성 성공!")
-    logger.info("PPO 파인튜닝 훈련을 시작합니다...")
+    # 모델에 실제로 존재하는 모듈 찾기
+    found_targets = set()
+    for name, _ in model.named_modules():
+        for pattern in common_patterns:
+            if pattern in name.split("."):
+                module_name = name.split(".")[-1]
+                found_targets.add(module_name)
     
-    # 생성 관련 설정
-    generation_kwargs = {
-        "min_length": -1,
-        "top_k": args.top_k,
-        "top_p": args.top_p,
-        "do_sample": True,
-        "pad_token_id": tokenizer.eos_token_id,
-        "max_new_tokens": args.max_new_tokens,
-    }
-
-    # 자동화된 학습 루프 실행
-    for epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
-        if epoch >= args.max_ppo_steps:
-            break
+    # 결과 정리
+    target_modules = list(found_targets)
+    
+    # 타겟 모듈이 없으면 모든 선형 레이어 찾기
+    if not target_modules:
+        logger.warning("일반적인 타겟 모듈을 찾을 수 없습니다. 모든 Linear 레이어를 탐색합니다.")
         
-        query_tensors = batch["input_ids"]
+        import torch.nn as nn
+        for name, module in model.named_modules():
+            if isinstance(module, nn.Linear):
+                module_name = name.split('.')[-1]
+                if module_name not in target_modules:
+                    target_modules.append(module_name)
+    
+    # 최소 타겟 모듈 보장
+    if not target_modules:
+        logger.warning("타겟 모듈을 찾을 수 없어 기본값 'dense'를 사용합니다.")
+        target_modules = ["dense"]
+    
+    logger.info(f"감지된 LoRA 타겟 모듈: {target_modules}")
+    return target_modules
+
+def merge_and_save_model(model, tokenizer, args):
+    """
+    LoRA 어댑터와 기본 모델을 병합하여 완전한 모델로 저장
+    """
+    logger.info("어댑터와 기본 모델 병합 중...")
+    
+    try:
+        # 어댑터 병합
+        merged_model = model.merge_and_unload()
         
-        # 모델로부터 응답 생성
-        response_tensors = ppo_trainer.generate(query_tensors, return_prompt=False, **generation_kwargs)
-        batch["response"] = tokenizer.batch_decode(response_tensors, skip_special_tokens=True)
+        # 병합된 모델 저장
+        merged_dir = os.path.join(args.output_dir, "merged_model")
+        os.makedirs(merged_dir, exist_ok=True)
+        
+        logger.info(f"병합된 모델 저장: {merged_dir}")
+        merged_model.save_pretrained(merged_dir)
+        tokenizer.save_pretrained(merged_dir)
+        
+        # 메모리 정리
+        del merged_model
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
+        
+        logger.info("모델 병합 및 저장 완료")
+        return True
+    
+    except Exception as e:
+        logger.error(f"모델 병합 중 오류 발생: {e}")
+        return False
 
-        # 감성 분석을 통해 보상 계산
-        texts = [q + r for q, r in zip(batch["query"], batch["response"])]
-        pipe_outputs = sentiment_pipe(texts, truncation=True, max_length=512)
-        rewards = []
-        for output in pipe_outputs:
-            if output['label'] == 'LABEL_1':
-                rewards.append(torch.tensor(output['score'], device=device))
-            else:
-                rewards.append(torch.tensor(-output['score'], device=device)) # 부정적인 경우 음수 보상
-
-        # PPO 스텝 실행
-        try:
-            stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
-            ppo_trainer.log_stats(stats, batch, rewards)
-            logger.info(f"Step {epoch+1}/{args.max_ppo_steps} | Mean reward: {torch.mean(torch.tensor(rewards)).item():.4f}")
-        except Exception as e:
-            logger.error(f"PPO step 실행 중 오류 발생: {e}")
-            traceback.print_exc()
-            break
-
-    logger.info("✅ PPO 파인튜닝 완료!")
-
-    logger.info("모델 저장 중...")
-    output_dir = args.output_dir
-    model.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
-    logger.info(f"✅ 모델 어댑터와 토크나이저가 '{output_dir}'에 저장되었습니다.")
+def main():
+    """메인 함수"""
+    args = parse_args()
+    
+    # 데이터 소스 확인
+    if not args.dataset_name and not args.data_path:
+        logger.error("--dataset-name 또는 --data-path 중 하나는 반드시 지정해야 합니다.")
+        return
+    
+    if args.data_path and not os.path.exists(args.data_path):
+        logger.error(f"데이터 파일을 찾을 수 없습니다: {args.data_path}")
+        return
+    
+    # 출력 디렉토리 생성
+    os.makedirs(args.output_dir, exist_ok=True)
+    
+    try:
+        # 기본 모델 및 토크나이저 로드
+        model = load_base_model(args)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+        
+        # 패딩 토큰 설정
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        
+        # 양자화된 모델인 경우 k-bit 학습을 위해 전처리
+        if args.use_8bit or args.use_4bit:
+            model = prepare_model_for_kbit_training(model)
+        
+        # 타겟 모듈 감지
+        target_modules = detect_target_modules(model)
+        
+        # LoRA 설정
+        lora_config = LoraConfig(
+            r=args.lora_r,
+            lora_alpha=args.lora_alpha,
+            lora_dropout=args.lora_dropout,
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules=target_modules
+        )
+        
+        # PEFT 모델 생성
+        model = get_peft_model(model, lora_config)
+        logger.info("LoRA 어댑터 초기화 완료")
+        
+        # 학습 가능한 파라미터 정보 출력
+        model.print_trainable_parameters()
+        
+        # 데이터셋 구축
+        if args.dataset_name:
+            dataset = build_dataset_from_hf(
+                args.dataset_name, 
+                tokenizer,
+                args.max_length,
+                args.limit_samples
+            )
+        else:
+            dataset = build_dataset_from_jsonl(
+                args.data_path, 
+                tokenizer,
+                args.max_length,
+                args.limit_samples
+            )
+        
+        # 데이터 콜레이터 (언어 모델링용)
+        data_collator = DataCollatorForLanguageModeling(
+            tokenizer=tokenizer, 
+            mlm=False  # 인과적 언어 모델링
+        )
+        
+        # 훈련 인자 설정
+        training_args = TrainingArguments(
+            output_dir=args.output_dir,
+            overwrite_output_dir=True,
+            num_train_epochs=args.epochs,
+            per_device_train_batch_size=args.batch_size,
+            gradient_accumulation_steps=2,
+            warmup_steps=100,
+            learning_rate=args.learning_rate,
+            fp16=args.use_fp16,
+            logging_steps=10,
+            save_steps=100,
+            save_total_limit=3,
+            prediction_loss_only=True,
+            remove_unused_columns=False,
+            dataloader_pin_memory=False,
+        )
+        
+        # 트레이너 생성
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            data_collator=data_collator,
+            train_dataset=dataset,
+            tokenizer=tokenizer
+        )
+        
+        # 훈련 실행
+        logger.info("훈련 시작...")
+        trainer.train()
+        
+        # 모델 저장
+        logger.info(f"훈련된 모델 저장: {args.output_dir}")
+        model.save_pretrained(args.output_dir)
+        tokenizer.save_pretrained(args.output_dir)
+        
+        # 훈련 설정 저장
+        training_config = {
+            "model_name": args.model_name,
+            "dataset_name": args.dataset_name,
+            "data_path": args.data_path,
+            "max_length": args.max_length,
+            "batch_size": args.batch_size,
+            "learning_rate": args.learning_rate,
+            "epochs": args.epochs,
+            "lora_r": args.lora_r,
+            "lora_alpha": args.lora_alpha, 
+            "lora_dropout": args.lora_dropout,
+            "training_mode": "standard",
+            "optimizations": {
+                "use_8bit": args.use_8bit,
+                "use_4bit": args.use_4bit,
+                "fp16": args.use_fp16
+            }
+        }
+        
+        with open(os.path.join(args.output_dir, 'training_config.json'), 'w', encoding='utf-8') as f:
+            json.dump(training_config, f, ensure_ascii=False, indent=2)
+        
+        # 병합 및 저장이 필요한 경우
+        if args.merge_and_save:
+            merge_and_save_model(model, tokenizer, args)
+        
+        logger.info("모델 파인튜닝 완료")
+        
+    except Exception as e:
+        logger.error(f"훈련 중 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    from tqdm import tqdm
     main()
