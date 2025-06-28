@@ -69,8 +69,14 @@ def extract_text_with_pypdf2(pdf_content):
         
         return text
     
+    except PyPDF2.errors.FileNotDecryptedError:
+        logger.error(f"PyPDF2: 암호화된 PDF 파일이라 텍스트를 추출할 수 없습니다.")
+        return None
+    except PyPDF2.errors.PdfReadError as e:
+        logger.error(f"PyPDF2: PDF 읽기 오류 발생: {str(e)}")
+        return None
     except Exception as e:
-        logger.error(f"PyPDF2로 텍스트 추출 중 오류 발생: {str(e)}")
+        logger.error(f"PyPDF2: 텍스트 추출 중 예상치 못한 오류 발생: {str(e)}")
         return None
 
 def extract_text_with_pdfplumber(pdf_content):
@@ -87,13 +93,19 @@ def extract_text_with_pdfplumber(pdf_content):
         with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
             text = ""
             for page in pdf.pages:
-                page_text = page.extract_text()
+                page_text = page.extract_text(x_tolerance=1, y_tolerance=3) # x_tolerance, y_tolerance 추가하여 추출 정확도 향상 시도
                 if page_text:
                     text += page_text + "\n\n"
             return text
     
+    except pdfplumber.exceptions.PasswordRequired:
+        logger.error(f"pdfplumber: 암호화된 PDF 파일이라 텍스트를 추출할 수 없습니다.")
+        return None
+    except pdfplumber.exceptions.PDFSyntaxError as e:
+        logger.error(f"pdfplumber: PDF 문법 오류 발생: {str(e)}")
+        return None
     except Exception as e:
-        logger.error(f"pdfplumber로 텍스트 추출 중 오류 발생: {str(e)}")
+        logger.error(f"pdfplumber: 텍스트 추출 중 예상치 못한 오류 발생: {str(e)}")
         return None
 
 def clean_text(text):
@@ -186,7 +198,16 @@ def extract_text_from_pdf_file(file_path):
     try:
         with open(file_path, 'rb') as f:
             pdf_content = f.read()
+
+    except FileNotFoundError:
+        logger.error(f"파일을 찾을 수 없습니다: {file_path}")
+        return None
+    except Exception as e: # Other potential IO errors
+        logger.error(f"파일 읽기 중 오류 발생 ({file_path}): {str(e)}")
+        return None
         
+    # 파일 읽기 성공 후 텍스트 추출 시도
+    try:
         # 여러 방법으로 텍스트 추출 시도
         text_pypdf2 = extract_text_with_pypdf2(pdf_content)
         text_pdfplumber = extract_text_with_pdfplumber(pdf_content)
@@ -214,8 +235,8 @@ def extract_text_from_pdf_file(file_path):
             'length': len(cleaned_text)
         }
     
-    except Exception as e:
-        logger.error(f"로컬 PDF 파일 처리 중 오류 발생: {str(e)}")
+    except Exception as e: # Catch errors during extraction if any, though specific ones are in sub-functions
+        logger.error(f"PDF 내용 처리 중 오류 발생 ({file_path}): {str(e)}")
         return None
 
 def process_pdf_urls(urls):
@@ -238,15 +259,92 @@ def process_pdf_urls(urls):
     logger.info(f"총 {len(urls)}개 PDF URL 중 {len(results)}개에서 텍스트 추출 성공")
     return results
 
+def process_pdf_files(file_paths):
+    """
+    여러 로컬 PDF 파일에서 텍스트 추출
+
+    Args:
+        file_paths (list): 텍스트를 추출할 PDF 파일 경로 목록
+
+    Returns:
+        list: 각 PDF 파일에서 추출한 텍스트와 메타데이터의 목록
+    """
+    results = []
+
+    for file_path in file_paths:
+        result = extract_text_from_pdf_file(file_path)
+        if result:
+            results.append(result)
+
+    logger.info(f"총 {len(file_paths)}개 PDF 파일 중 {len(results)}개에서 텍스트 추출 성공")
+    return results
+
 if __name__ == "__main__":
     # 테스트 코드
-    test_url = "https://arxiv.org/pdf/2005.14165.pdf"  # 샘플 PDF URL
-    result = extract_text_from_pdf_url(test_url)
-    
-    if result:
-        print(f"파일명: {result['filename']}")
-        print(f"추출 방법: {result['method']}")
-        print(f"텍스트 길이: {result['length']}")
-        print(f"텍스트 일부: {result['text'][:500]}...")
-    else:
-        print("텍스트 추출 실패")
+    # 1. URL 테스트
+    print("--- URL 테스트 시작 ---")
+    test_urls = [
+        "https://arxiv.org/pdf/2005.14165.pdf",  # 정상적인 PDF
+        "https://www.example.com/nonexistent.pdf", # 존재하지 않는 PDF URL
+        "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" # 간단한 PDF
+        # "https://www.example.com/password_protected.pdf" # 테스트용 암호화된 PDF (실제 URL 필요)
+        # "https://www.example.com/corrupted.pdf" # 테스트용 손상된 PDF (실제 URL 필요)
+    ]
+    url_results = process_pdf_urls(test_urls)
+
+    print(f"\n--- URL 테스트 결과 ({len(url_results)}/{len(test_urls)} 성공) ---")
+    for res in url_results:
+        print(f"URL: {res.get('url', res.get('file_path'))}")
+        print(f"  파일명: {res['filename']}")
+        print(f"  추출 방법: {res['method']}")
+        print(f"  텍스트 길이: {res['length']}")
+        print(f"  텍스트 일부: {res['text'][:100].replace('\n', ' ')}...\n")
+
+    # 2. 로컬 파일 테스트 (테스트를 위해 임시 파일 생성 및 가짜 경로 사용)
+    print("\n--- 로컬 파일 테스트 시작 ---")
+
+    # 임시 정상 PDF 파일 생성 (PyPDF2를 사용하여 간단한 PDF 생성)
+    # 실제 테스트 시에는 다양한 정상/문제 PDF 파일을 준비해야 합니다.
+    temp_dir = tempfile.gettempdir()
+    dummy_pdf_path = os.path.join(temp_dir, "dummy_correct.pdf")
+
+    try:
+        from PyPDF2 import PdfWriter
+        writer = PdfWriter()
+        writer.add_blank_page(width=210, height=297) # A4 size in points
+        # You could add text here if PyPDF2 had an easy way to write text directly to a page.
+        # For simplicity, we'll use a blank page. Actual text extraction won't yield much.
+        with open(dummy_pdf_path, "wb") as f:
+            writer.write(f)
+        logger.info(f"임시 정상 PDF 파일 생성: {dummy_pdf_path}")
+        created_dummy_pdf = True
+    except Exception as e:
+        logger.error(f"임시 PDF 생성 실패: {e}")
+        created_dummy_pdf = False
+
+    test_files = []
+    if created_dummy_pdf:
+        test_files.append(dummy_pdf_path)
+    test_files.append("non_existent_file.pdf") # 존재하지 않는 파일
+
+    # 테스트를 위해, 실제 손상된 파일이나 암호화된 파일을 이 리스트에 추가할 수 있습니다.
+    # 예: test_files.append("path/to/your/corrupted.pdf")
+    # 예: test_files.append("path/to/your/password_protected.pdf")
+
+    file_results = process_pdf_files(test_files)
+
+    print(f"\n--- 로컬 파일 테스트 결과 ({len(file_results)}/{len(test_files)} 성공) ---")
+    for res in file_results:
+        print(f"경로: {res.get('url', res.get('file_path'))}")
+        print(f"  파일명: {res['filename']}")
+        print(f"  추출 방법: {res['method']}")
+        print(f"  텍스트 길이: {res['length']}")
+        print(f"  텍스트 일부: {res['text'][:100].replace('\n', ' ')}...\n")
+
+    # 임시 파일 삭제
+    if created_dummy_pdf and os.path.exists(dummy_pdf_path):
+        try:
+            os.remove(dummy_pdf_path)
+            logger.info(f"임시 PDF 파일 삭제: {dummy_pdf_path}")
+        except Exception as e:
+            logger.error(f"임시 PDF 파일 삭제 실패: {e}")
