@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
 """
 RTX 3060 12GB 최적화된 한국어 언어 모델 파인튜닝 스크립트
+HuggingFace 데이터셋과 로컬 JSONL 파일 모두 지원
 """
 import os
 import argparse
@@ -30,8 +32,13 @@ def parse_args():
     
     parser.add_argument('--model-name', default='EleutherAI/polyglot-ko-1.3b', 
                         help='파인튜닝할 모델 이름')
-    parser.add_argument('--data-path', required=True, 
-                        help='훈련 데이터 JSONL 파일 경로')
+    
+    # 데이터 소스 (둘 중 하나 선택)
+    parser.add_argument('--dataset-name', default=None,
+                        help='HuggingFace 데이터셋 이름 (예: maywell/korean_textbooks)')
+    parser.add_argument('--data-path', default=None, 
+                        help='로컬 훈련 데이터 JSONL 파일 경로')
+    
     parser.add_argument('--output-dir', default='my_korean_finetuned_model', 
                         help='모델 저장 디렉토리')
     
@@ -69,6 +76,10 @@ def parse_args():
     parser.add_argument('--lr-scheduler', choices=['cosine', 'linear', 'constant'], 
                         default='cosine', help='학습률 스케줄러')
     
+    # 기타 설정
+    parser.add_argument('--merge-and-save', action='store_true',
+                        help='학습 후 어댑터와 모델 병합해서 저장')
+    
     return parser.parse_args()
 
 def get_optimized_quantization_config(use_4bit=False):
@@ -86,9 +97,118 @@ def get_optimized_quantization_config(use_4bit=False):
             llm_int8_enable_fp32_cpu_offload=False,
         )
 
+def build_dataset_from_hf(dataset_name, tokenizer, max_length=2048, limit=None):
+    """
+    HuggingFace 데이터셋에서 최적화된 데이터셋 구축
+    """
+    logger.info(f"HuggingFace 데이터셋 로드: {dataset_name}")
+    
+    try:
+        # 데이터셋 로드 시도
+        if "korean_textbooks" in dataset_name:
+            ds = load_dataset(dataset_name, "normal_instructions", split="train", trust_remote_code=True)
+            logger.info("korean_textbooks의 normal_instructions 서브셋 로드")
+        else:
+            ds = load_dataset(dataset_name, split="train", trust_remote_code=True)
+        
+        logger.info(f"로드된 데이터셋 크기: {len(ds)}")
+        logger.info(f"데이터셋 컬럼: {ds.column_names}")
+        
+        # 텍스트 필드 찾기 및 전처리
+        text_field = None
+        
+        # korean_textbooks 데이터셋 특별 처리
+        if "korean_textbooks" in dataset_name and "instruction" in ds.column_names and "output" in ds.column_names:
+            def combine_instruction_output(sample):
+                instruction = sample.get("instruction", "") or ""
+                output = sample.get("output", "") or ""
+                combined_text = f"### 질문: {instruction}\n### 답변: {output}"
+                sample["text"] = combined_text
+                return sample
+            
+            ds = ds.map(combine_instruction_output)
+            text_field = "text"
+            logger.info("instruction과 output을 결합하여 text 필드 생성")
+        
+        # 일반적인 텍스트 필드 찾기
+        if text_field is None:
+            possible_text_fields = ['text', 'content', 'dialogue', 'conversation', 'message', 'document', 'review']
+            
+            for field in possible_text_fields:
+                if field in ds.column_names:
+                    text_field = field
+                    logger.info(f"'{field}' 필드를 텍스트로 사용합니다.")
+                    break
+            
+            if text_field is None:
+                # 첫 번째 열을 텍스트 필드로 사용
+                text_field = ds.column_names[0]
+                logger.warning(f"텍스트 필드를 찾을 수 없어 첫 번째 열 '{text_field}'을 사용합니다.")
+        
+        # 텍스트 필드가 'text'가 아닌 경우 이름 변경
+        if text_field != 'text':
+            ds = ds.rename_column(text_field, 'text')
+        
+        # 필요한 경우 샘플 수 제한
+        if limit and len(ds) > limit:
+            ds = ds.select(range(limit))
+            logger.info(f"데이터셋을 {limit}개 샘플로 제한")
+        
+        # 텍스트 길이 필터링 (더 엄격한 필터링)
+        def filter_by_length(example):
+            if example["text"] is None:
+                return False
+            text_length = len(str(example["text"]))
+            return 100 <= text_length <= max_length * 2  # 토큰 수는 대략 문자 수의 절반
+        
+        ds = ds.filter(filter_by_length, batched=False)
+        logger.info(f"길이 필터링 후 데이터셋 크기: {len(ds)}")
+        
+        # 텍스트 품질 필터링
+        def filter_by_quality(example):
+            text = str(example["text"])
+            # 기본적인 품질 필터
+            if len(text.split()) < 20:  # 너무 짧은 텍스트
+                return False
+            if text.count('\n') / len(text) > 0.1:  # 너무 많은 줄바꿈
+                return False
+            return True
+        
+        ds = ds.filter(filter_by_quality, batched=False)
+        logger.info(f"품질 필터링 후 데이터셋 크기: {len(ds)}")
+        
+        def tokenize_function(examples):
+            # 정적 패딩 사용 (안정성 우선)
+            tokenized = tokenizer(
+                examples["text"], 
+                padding="max_length",  # 정적 패딩으로 변경
+                truncation=True, 
+                max_length=max_length,
+                return_tensors=None  # 텐서 변환 비활성화 (datasets가 처리)
+            )
+            # labels는 input_ids와 동일하게 설정
+            tokenized["labels"] = tokenized["input_ids"].copy()
+            return tokenized
+        
+        # 토큰화 적용 (안정성을 위해 단일 프로세스 사용)
+        tokenized_ds = ds.map(
+            tokenize_function, 
+            batched=True,
+            batch_size=16,  # 토큰화 시 적당한 배치 사용
+            remove_columns=ds.column_names,
+            num_proc=1  # 안정성을 위해 단일 프로세스 사용
+        )
+        
+        logger.info(f"최적화된 데이터셋 구축 완료: {len(tokenized_ds)}개 샘플")
+        return tokenized_ds
+        
+    except Exception as e:
+        logger.error(f"데이터셋 로드 중 오류 발생: {e}")
+        raise
+
 def build_optimized_dataset(data_path, tokenizer, max_length=2048, limit=None):
     """
-    최적화된 데이터셋 구축
+    JSONL 파일에서 최적화된 데이터셋 구축
     """
     logger.info(f"최적화된 데이터셋 구축: {data_path}")
     
@@ -102,7 +222,26 @@ def build_optimized_dataset(data_path, tokenizer, max_length=2048, limit=None):
     
     # 텍스트 필드 확인
     if 'text' not in ds.column_names:
-        raise ValueError("데이터셋에 'text' 필드가 없습니다.")
+        logger.warning("데이터셋에 'text' 필드가 없습니다. 열 이름을 확인합니다.")
+        logger.info(f"사용 가능한 열: {ds.column_names}")
+        
+        # 가능한 텍스트 필드 이름들
+        possible_text_fields = ['text', 'content', 'dialogue', 'conversation', 'message', 'document']
+        
+        text_field = None
+        for field in possible_text_fields:
+            if field in ds.column_names:
+                text_field = field
+                logger.info(f"'{field}' 필드를 텍스트로 사용합니다.")
+                break
+        
+        if text_field is None:
+            # 첫 번째 열을 텍스트 필드로 사용
+            text_field = ds.column_names[0]
+            logger.warning(f"텍스트 필드를 찾을 수 없어 첫 번째 열 '{text_field}'을 사용합니다.")
+        
+        # 열 이름 변경
+        ds = ds.rename_column(text_field, 'text')
     
     # 텍스트 길이 필터링 (더 엄격한 필터링)
     def filter_by_length(example):
@@ -222,6 +361,37 @@ class OptimizedDataCollator:
         )
         return collator(features)
 
+def merge_and_save_model(model, tokenizer, args):
+    """
+    LoRA 어댑터와 기본 모델을 병합하여 완전한 모델로 저장
+    """
+    logger.info("어댑터와 기본 모델 병합 중...")
+    
+    try:
+        # 어댑터 병합
+        merged_model = model.merge_and_unload()
+        
+        # 병합된 모델 저장
+        merged_dir = os.path.join(args.output_dir, "merged_model")
+        os.makedirs(merged_dir, exist_ok=True)
+        
+        logger.info(f"병합된 모델 저장: {merged_dir}")
+        merged_model.save_pretrained(merged_dir)
+        tokenizer.save_pretrained(merged_dir)
+        
+        # 메모리 정리
+        del merged_model
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
+        
+        logger.info("모델 병합 및 저장 완료")
+        return True
+    
+    except Exception as e:
+        logger.error(f"모델 병합 중 오류 발생: {e}")
+        return False
+
 def train_with_optimized_method(args):
     """
     최적화된 훈련 방법
@@ -265,13 +435,21 @@ def train_with_optimized_method(args):
     # 훈련 가능한 파라미터 출력
     model.print_trainable_parameters()
     
-    # 최적화된 데이터셋 구축
-    dataset = build_optimized_dataset(
-        args.data_path, 
-        tokenizer,
-        args.max_length,
-        args.limit_samples
-    )
+    # 최적화된 데이터셋 구축 (HuggingFace 데이터셋 또는 로컬 JSONL 파일)
+    if args.dataset_name:
+        dataset = build_dataset_from_hf(
+            args.dataset_name, 
+            tokenizer,
+            args.max_length,
+            args.limit_samples
+        )
+    else:
+        dataset = build_optimized_dataset(
+            args.data_path, 
+            tokenizer,
+            args.max_length,
+            args.limit_samples
+        )
     
     # 최적화된 데이터 콜레이터
     data_collator = OptimizedDataCollator(tokenizer, args.max_length)
@@ -338,6 +516,8 @@ def train_with_optimized_method(args):
     # 훈련 설정 저장
     training_config = {
         'model_name': args.model_name,
+        'dataset_name': args.dataset_name,
+        'data_path': args.data_path,
         'max_length': args.max_length,
         'batch_size': args.batch_size,
         'gradient_accumulation_steps': args.gradient_accumulation_steps,
@@ -361,6 +541,10 @@ def train_with_optimized_method(args):
     with open(os.path.join(args.output_dir, 'training_config.json'), 'w', encoding='utf-8') as f:
         json.dump(training_config, f, ensure_ascii=False, indent=2)
     
+    # 병합 및 저장이 필요한 경우
+    if args.merge_and_save:
+        merge_and_save_model(model, tokenizer, args)
+    
     logger.info("최적화된 모델 파인튜닝 완료!")
     
     # 메모리 정리
@@ -370,8 +554,12 @@ def main():
     """메인 함수"""
     args = parse_args()
     
-    # 데이터 파일 확인
-    if not os.path.exists(args.data_path):
+    # 데이터 소스 확인
+    if not args.dataset_name and not args.data_path:
+        logger.error("--dataset-name 또는 --data-path 중 하나는 반드시 지정해야 합니다.")
+        return
+    
+    if args.data_path and not os.path.exists(args.data_path):
         logger.error(f"데이터 파일을 찾을 수 없습니다: {args.data_path}")
         return
     
