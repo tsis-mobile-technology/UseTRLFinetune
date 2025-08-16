@@ -1,0 +1,67 @@
+2025-08-16 14:08:19,107 - INFO - 🚀 GGUF 변환 프로세스 시작
+2025-08-16 14:08:19,107 - INFO - 📁 입력 모델: my_korean_gpt_oss_20b_merged
+2025-08-16 14:08:19,107 - INFO - 📄 출력 파일: my_korean_gpt_oss_20b.gguf
+2025-08-16 14:08:19,108 - WARNING - ❌ llama.cpp 변환 스크립트를 찾을 수 없습니다.
+2025-08-16 14:08:19,108 - INFO - 🔧 llama.cpp 자동 설치 시도...
+2025-08-16 14:08:19,108 - INFO - 📥 llama.cpp 클론 중...
+2025-08-16 14:08:31,050 - INFO - ✅ llama.cpp 클론 완료
+2025-08-16 14:08:31,050 - INFO - 📦 Python 의존성 설치 중...
+2025-08-16 14:08:31,633 - INFO - 🔄 변환 명령어: /home/proidea/Programming/UseTRLFinetune/korean-llm-env/bin/python llama.cpp/convert_hf_to_gguf.py my_korean_gpt_oss_20b_merged --outfile my_korean_gpt_oss_20b.gguf --vocab-type bpe --outtype q4_0
+2025-08-16 14:08:31,633 - INFO - ⏳ 변환 중... (수 분 소요될 수 있습니다)
+2025-08-16 14:08:33,392 - ERROR - ❌ 변환 실패: Traceback (most recent call last):
+  File "/home/proidea/Programming/UseTRLFinetune/llama.cpp/convert_hf_to_gguf.py", line 32, in <module>
+    from mistral_common.tokens.tokenizers.base import TokenizerVersion
+ModuleNotFoundError: No module named 'mistral_common'
+
+2025-08-16 14:08:33,392 - ERROR - stdout: 
+2025-08-16 14:08:44,410 - INFO - 🚀 GGUF 변환 프로세스 시작
+2025-08-16 14:08:44,410 - INFO - 📁 입력 모델: my_korean_gpt_oss_20b_merged
+2025-08-16 14:08:44,410 - INFO - 📄 출력 파일: my_korean_gpt_oss_20b.gguf
+2025-08-16 14:08:44,410 - INFO - ✅ llama.cpp 변환 스크립트 발견: llama.cpp/convert_hf_to_gguf.py
+2025-08-16 14:08:44,410 - INFO - 🔄 변환 명령어: /home/proidea/Programming/UseTRLFinetune/korean-llm-env/bin/python /home/proidea/Programming/UseTRLFinetune/llama.cpp/convert_hf_to_gguf.py my_korean_gpt_oss_20b_merged --outfile my_korean_gpt_oss_20b.gguf --vocab-type bpe --outtype q4_0
+2025-08-16 14:08:44,410 - INFO - ⏳ 변환 중... (수 분 소요될 수 있습니다)
+2025-08-16 14:08:46,208 - ERROR - ❌ 변환 실패: usage: convert_hf_to_gguf.py [-h] [--vocab-only] [--outfile OUTFILE]
+                             [--outtype {f32,f16,bf16,q8_0,tq1_0,tq2_0,auto}]
+                             [--bigendian] [--use-temp-file] [--no-lazy]
+                             [--model-name MODEL_NAME] [--verbose]
+                             [--split-max-tensors SPLIT_MAX_TENSORS]
+                             [--split-max-size SPLIT_MAX_SIZE] [--dry-run]
+                             [--no-tensor-first-split] [--metadata METADATA]
+                             [--print-supported-models] [--remote] [--mmproj]
+                             [--mistral-format]
+                             [model]
+convert_hf_to_gguf.py: error: argument --outtype: invalid choice: 'q4_0' (choose from 'f32', 'f16', 'bf16', 'q8_0', 'tq1_0', 'tq2_0', 'auto')
+
+2025-08-16 14:08:46,208 - ERROR - stdout: 
+2025-08-16 14:08:50,169 - INFO - 🚀 GGUF 변환 프로세스 시작
+2025-08-16 14:08:50,169 - INFO - 📁 입력 모델: my_korean_gpt_oss_20b_merged
+2025-08-16 14:08:50,169 - INFO - 📄 출력 파일: my_korean_gpt_oss_20b.gguf
+2025-08-16 14:08:50,169 - INFO - ✅ llama.cpp 변환 스크립트 발견: llama.cpp/convert_hf_to_gguf.py
+2025-08-16 14:08:50,169 - INFO - 🔄 변환 명령어: /home/proidea/Programming/UseTRLFinetune/korean-llm-env/bin/python /home/proidea/Programming/UseTRLFinetune/llama.cpp/convert_hf_to_gguf.py my_korean_gpt_oss_20b_merged --outfile my_korean_gpt_oss_20b.gguf --vocab-type bpe
+2025-08-16 14:08:50,169 - INFO - ⏳ 변환 중... (수 분 소요될 수 있습니다)
+2025-08-16 14:08:51,966 - ERROR - ❌ 변환 실패: usage: convert_hf_to_gguf.py [-h] [--vocab-only] [--outfile OUTFILE]
+                             [--outtype {f32,f16,bf16,q8_0,tq1_0,tq2_0,auto}]
+                             [--bigendian] [--use-temp-file] [--no-lazy]
+                             [--model-name MODEL_NAME] [--verbose]
+                             [--split-max-tensors SPLIT_MAX_TENSORS]
+                             [--split-max-size SPLIT_MAX_SIZE] [--dry-run]
+                             [--no-tensor-first-split] [--metadata METADATA]
+                             [--print-supported-models] [--remote] [--mmproj]
+                             [--mistral-format]
+                             [model]
+convert_hf_to_gguf.py: error: unrecognized arguments: --vocab-type bpe
+
+2025-08-16 14:08:51,966 - ERROR - stdout: 
+2025-08-16 14:09:08,958 - INFO - 🚀 GGUF 변환 프로세스 시작
+2025-08-16 14:09:08,958 - INFO - 📁 입력 모델: my_korean_gpt_oss_20b_merged
+2025-08-16 14:09:08,958 - INFO - 📄 출력 파일: my_korean_gpt_oss_20b.gguf
+2025-08-16 14:09:08,958 - INFO - ✅ llama.cpp 변환 스크립트 발견: llama.cpp/convert_hf_to_gguf.py
+2025-08-16 14:09:08,958 - INFO - 🔄 변환 명령어: /home/proidea/Programming/UseTRLFinetune/korean-llm-env/bin/python /home/proidea/Programming/UseTRLFinetune/llama.cpp/convert_hf_to_gguf.py my_korean_gpt_oss_20b_merged --outfile my_korean_gpt_oss_20b.gguf --outtype f16
+2025-08-16 14:09:08,958 - INFO - ⏳ 변환 중... (수 분 소요될 수 있습니다)
+2025-08-16 14:09:17,716 - INFO - ✅ GGUF 변환 성공!
+2025-08-16 14:09:17,716 - INFO - 📊 GGUF 파일 크기: 0.7GB
+2025-08-16 14:09:17,718 - INFO - 📋 메타데이터 저장: my_korean_gpt_oss_20b.json
+2025-08-16 14:09:17,718 - INFO - 📝 Ollama Modelfile 생성 중...
+2025-08-16 14:09:17,718 - INFO - ✅ Modelfile 생성 완료: Modelfile
+2025-08-16 14:09:17,718 - INFO - 🚀 Ollama 모델 생성 명령어:
+2025-08-16 14:09:17,718 - INFO -    ollama create korean-gpt-oss-20b -f Modelfile

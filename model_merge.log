@@ -1,0 +1,5 @@
+2025-08-16 14:05:41,256 - INFO - 🚀 모델 병합 프로세스 시작
+2025-08-16 14:05:41,256 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 14:05:41,256 - INFO - VRAM: 11.6GB
+2025-08-16 14:05:41,256 - INFO - 📁 LoRA 어댑터 로딩: my_korean_gpt_oss_20b_lora
+2025-08-16 14:05:43,825 - ERROR - ❌ 모델 병합 실패: Direct module loading failed for unsloth_compiled_module_gpt2: unexpected indent (unsloth_compiled_module_gpt2.py, line 724)

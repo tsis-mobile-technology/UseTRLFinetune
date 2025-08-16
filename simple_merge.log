@@ -1,0 +1,30 @@
+2025-08-16 14:06:25,345 - INFO - 🚀 간단한 모델 병합 프로세스 시작
+2025-08-16 14:06:25,400 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 14:06:25,400 - INFO - VRAM: 11.6GB
+2025-08-16 14:06:25,400 - INFO - 📁 LoRA 어댑터 경로: my_korean_gpt_oss_20b_lora
+2025-08-16 14:06:25,400 - INFO - 📋 기본 모델: microsoft/DialoGPT-medium
+2025-08-16 14:06:25,400 - INFO - 📥 기본 모델 로드 중...
+2025-08-16 14:06:26,065 - INFO - We will use 90% of the memory on device 0 for storing the model, and 10% for the buffer to avoid OOM. You can set `max_memory` in to a higher value to use more memory (at your own risk).
+2025-08-16 14:06:27,261 - INFO - ✅ 기본 모델 로드 완료
+2025-08-16 14:06:27,261 - INFO - 🔄 LoRA 어댑터 병합 중...
+2025-08-16 14:06:27,658 - INFO - ✅ 모델 병합 완료
+2025-08-16 14:06:27,658 - INFO - 💾 병합된 모델 저장 중: my_korean_gpt_oss_20b_merged
+2025-08-16 14:06:28,403 - ERROR - ❌ 모델 병합 실패: Object of type set is not JSON serializable
+2025-08-16 14:06:50,265 - INFO - 🚀 간단한 모델 병합 프로세스 시작
+2025-08-16 14:06:50,341 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 14:06:50,341 - INFO - VRAM: 11.6GB
+2025-08-16 14:06:50,341 - INFO - 📁 LoRA 어댑터 경로: my_korean_gpt_oss_20b_lora
+2025-08-16 14:06:50,342 - INFO - 📋 기본 모델: microsoft/DialoGPT-medium
+2025-08-16 14:06:50,342 - INFO - 📥 기본 모델 로드 중...
+2025-08-16 14:06:51,074 - INFO - We will use 90% of the memory on device 0 for storing the model, and 10% for the buffer to avoid OOM. You can set `max_memory` in to a higher value to use more memory (at your own risk).
+2025-08-16 14:06:52,229 - INFO - ✅ 기본 모델 로드 완료
+2025-08-16 14:06:52,229 - INFO - 🔄 LoRA 어댑터 병합 중...
+2025-08-16 14:06:52,628 - INFO - ✅ 모델 병합 완료
+2025-08-16 14:06:52,628 - INFO - 💾 병합된 모델 저장 중: my_korean_gpt_oss_20b_merged
+2025-08-16 14:06:54,893 - INFO - 📊 총 모델 크기: 0.7GB
+2025-08-16 14:06:54,893 - INFO - ✅ 모델 저장 완료!
+2025-08-16 14:06:54,893 - INFO - 📁 저장 위치: my_korean_gpt_oss_20b_merged
+2025-08-16 14:06:54,893 - INFO - 🧪 병합된 모델 추론 테스트
+2025-08-16 14:06:55,173 - INFO - ✅ 안녕하세요!  → 안녕하세요! ious
+2025-08-16 14:06:55,200 - INFO - ✅ 대한민국의 수도는  → 대한민국의 수도는 �.
+2025-08-16 14:06:55,212 - INFO - ✅ 한글은  → 한글은 igen

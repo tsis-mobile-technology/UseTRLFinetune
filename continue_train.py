@@ -4,6 +4,8 @@
 두 가지 방식 지원:
 1. 기존 LoRA 어댑터에서 바로 계속 학습 (incremental training)
 2. 병합된 모델에서 새 LoRA 어댑터로 학습 (merged model training)
+
+추가 기능: HuggingFace 데이터셋과 로컬 JSONL 파일 모두 지원
 """
 
 import os
@@ -32,8 +34,13 @@ def parse_args():
                         help='기본 모델 이름 또는 경로')
     parser.add_argument('--finetuned-model', default=None,
                         help='기존에 파인튜닝된 모델 경로 (my_optimized_model 또는 my_korean_finetuned_model)')
-    parser.add_argument('--data-path', required=True, 
-                        help='새로운 훈련 데이터 JSONL 파일 경로')
+    
+    # 데이터 소스 (둘 중 하나 선택)
+    parser.add_argument('--dataset-name', default=None,
+                        help='HuggingFace 데이터셋 이름 (예: maywell/korean_textbooks)')
+    parser.add_argument('--data-path', default=None, 
+                        help='로컬 훈련 데이터 JSONL 파일 경로')
+    
     parser.add_argument('--output-dir', default='my_continued_model', 
                         help='모델 저장 디렉토리')
     
@@ -73,6 +80,93 @@ def parse_args():
     
     return parser.parse_args()
 
+def build_dataset_from_hf(dataset_name, tokenizer, max_length=512, limit=None):
+    """
+    HuggingFace 데이터셋에서 데이터셋 구축
+    """
+    logger.info(f"HuggingFace 데이터셋 로드: {dataset_name}")
+    
+    try:
+        # 데이터셋 로드 시도
+        if "korean_textbooks" in dataset_name:
+            ds = load_dataset(dataset_name, "normal_instructions", split="train", trust_remote_code=True)
+            logger.info("korean_textbooks의 normal_instructions 서브셋 로드")
+        else:
+            ds = load_dataset(dataset_name, split="train", trust_remote_code=True)
+        
+        logger.info(f"로드된 데이터셋 크기: {len(ds)}")
+        logger.info(f"데이터셋 컬럼: {ds.column_names}")
+        
+        # 텍스트 필드 찾기 및 전처리
+        text_field = None
+        
+        # korean_textbooks 데이터셋 특별 처리
+        if "korean_textbooks" in dataset_name and "instruction" in ds.column_names and "output" in ds.column_names:
+            def combine_instruction_output(sample):
+                instruction = sample.get("instruction", "") or ""
+                output = sample.get("output", "") or ""
+                combined_text = f"### 질문: {instruction}\n### 답변: {output}"
+                sample["text"] = combined_text
+                return sample
+            
+            ds = ds.map(combine_instruction_output)
+            text_field = "text"
+            logger.info("instruction과 output을 결합하여 text 필드 생성")
+        
+        # 일반적인 텍스트 필드 찾기
+        if text_field is None:
+            possible_text_fields = ['text', 'content', 'dialogue', 'conversation', 'message', 'document', 'review']
+            
+            for field in possible_text_fields:
+                if field in ds.column_names:
+                    text_field = field
+                    logger.info(f"'{field}' 필드를 텍스트로 사용합니다.")
+                    break
+            
+            if text_field is None:
+                # 첫 번째 열을 텍스트 필드로 사용
+                text_field = ds.column_names[0]
+                logger.warning(f"텍스트 필드를 찾을 수 없어 첫 번째 열 '{text_field}'을 사용합니다.")
+        
+        # 텍스트 필드가 'text'가 아닌 경우 이름 변경
+        if text_field != 'text':
+            ds = ds.rename_column(text_field, 'text')
+        
+        # 필요한 경우 샘플 수 제한
+        if limit and len(ds) > limit:
+            ds = ds.select(range(limit))
+            logger.info(f"데이터셋을 {limit}개 샘플로 제한")
+        
+        # 텍스트 길이 필터링
+        ds = ds.filter(lambda x: x["text"] is not None and len(str(x["text"])) > 20, batched=False)
+        logger.info(f"필터링 후 데이터셋 크기: {len(ds)}")
+        
+        def tokenize_function(examples):
+            # 텍스트 토큰화
+            tokenized = tokenizer(
+                examples["text"], 
+                padding="max_length", 
+                truncation=True, 
+                max_length=max_length,
+                return_tensors="pt"
+            )
+            # labels는 input_ids와 동일하게 설정 (언어모델링)
+            tokenized["labels"] = tokenized["input_ids"].clone()
+            return tokenized
+        
+        # 토큰화 적용
+        tokenized_ds = ds.map(
+            tokenize_function, 
+            batched=True, 
+            remove_columns=ds.column_names
+        )
+        
+        logger.info(f"데이터셋 구축 완료: {len(tokenized_ds)}개 샘플")
+        return tokenized_ds
+        
+    except Exception as e:
+        logger.error(f"데이터셋 로드 중 오류 발생: {e}")
+        
 def build_dataset_from_jsonl(data_path, tokenizer, max_length=512, limit=None):
     """
     JSONL 파일에서 데이터셋 구축
@@ -252,13 +346,21 @@ def continue_training(args):
     # 학습 가능한 파라미터 정보 출력
     model.print_trainable_parameters()
     
-    # 데이터셋 구축
-    dataset = build_dataset_from_jsonl(
-        args.data_path, 
-        tokenizer,
-        args.max_length,
-        args.limit_samples
-    )
+    # 데이터셋 구축 (HuggingFace 데이터셋 또는 로컬 JSONL 파일)
+    if args.dataset_name:
+        dataset = build_dataset_from_hf(
+            args.dataset_name, 
+            tokenizer,
+            args.max_length,
+            args.limit_samples
+        )
+    else:
+        dataset = build_dataset_from_jsonl(
+            args.data_path, 
+            tokenizer,
+            args.max_length,
+            args.limit_samples
+        )
     
     # 데이터 콜레이터 (언어 모델링용)
     data_collator = DataCollatorForLanguageModeling(
@@ -306,6 +408,8 @@ def continue_training(args):
     training_config = {
         "model_name": args.base_model,
         "finetuned_from": args.finetuned_model,
+        "dataset_name": args.dataset_name,
+        "data_path": args.data_path,
         "max_length": args.max_length,
         "batch_size": args.batch_size,
         "learning_rate": args.learning_rate,
@@ -428,8 +532,12 @@ def main():
     """메인 함수"""
     args = parse_args()
     
-    # 데이터 파일 확인
-    if not os.path.exists(args.data_path):
+    # 데이터 소스 확인
+    if not args.dataset_name and not args.data_path:
+        logger.error("--dataset-name 또는 --data-path 중 하나는 반드시 지정해야 합니다.")
+        return
+    
+    if args.data_path and not os.path.exists(args.data_path):
         logger.error(f"데이터 파일을 찾을 수 없습니다: {args.data_path}")
         return
     

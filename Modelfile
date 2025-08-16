@@ -1,0 +1,17 @@
+# Korean Fine-tuned GPT-OSS-20B Model
+FROM /home/proidea/Programming/UseTRLFinetune/my_korean_gpt_oss_20b.gguf
+
+# 한국어 최적화 설정
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+
+# 시스템 프롬프트 (한국어 대화)
+SYSTEM """당신은 한국어를 유창하게 구사하는 AI 어시스턴트입니다. 
+사용자의 질문에 정확하고 도움이 되는 답변을 한국어로 제공해주세요.
+예의 바르고 친근한 톤으로 대화해주세요."""
+
+# 채팅 템플릿 (기본 대화형)
+TEMPLATE """사용자: {{ .Prompt }}
+어시스턴트: {{ .Response }}"""

@@ -1,0 +1,30 @@
+{
+  "format": "GGUF",
+  "quantization": "f16",
+  "source_model": "my_korean_gpt_oss_20b_merged",
+  "gguf_file": "my_korean_gpt_oss_20b.gguf",
+  "created_at": "2025-08-16",
+  "compatible_with": [
+    "ollama",
+    "llama.cpp",
+    "oobabooga"
+  ],
+  "korean_finetuned": true,
+  "original_info": {
+    "base_model": "microsoft/DialoGPT-medium",
+    "lora_adapter": "my_korean_gpt_oss_20b_lora",
+    "merged_at": "2025-08-16",
+    "model_type": "merged_lora",
+    "korean_finetuned": true,
+    "peft_config": {
+      "r": 16,
+      "lora_alpha": 16,
+      "target_modules": [
+        "c_fc",
+        "c_proj",
+        "c_attn"
+      ],
+      "lora_dropout": 0.0
+    }
+  }
+}
