@@ -55,9 +55,9 @@ class GPTOSSFineTuner:
         self.lora_r = lora_r
         self.lora_alpha = lora_alpha
         self.lora_dropout = lora_dropout
-        # GPT-2/DialoGPT용 target modules
+        # GPT-OSS-20B용 target modules (GPT-2 기반 아키텍처)
         self.target_modules = target_modules or [
-            "c_attn", "c_proj", "c_fc"
+            "c_attn", "c_proj", "c_fc"  # GPT-2 스타일 모듈
         ]
         
         # 로깅 설정
@@ -87,7 +87,7 @@ class GPTOSSFineTuner:
         self.logger.info(f"모델 로딩 시작: {self.model_name}")
         
         try:
-            # Unsloth FastLanguageModel로 모델 로드
+            # 모델 로딩 (간단하고 안전한 방법)
             self.model, self.tokenizer = FastLanguageModel.from_pretrained(
                 model_name=self.model_name,
                 max_seq_length=self.max_seq_length,
@@ -125,22 +125,41 @@ class GPTOSSFineTuner:
             raise
     
     def load_dataset(self, data_path: str) -> Dataset:
-        """JSONL 데이터셋 로드 및 전처리"""
-        self.logger.info(f"데이터셋 로딩: {data_path}")
+        """JSONL 데이터셋 로드 및 전처리 - data/ 디렉토리의 모든 jsonl 파일 지원"""
+        import glob
+        
+        # data_path가 디렉토리인지 확인하고 모든 jsonl 파일 수집
+        if os.path.isdir(data_path):
+            jsonl_files = glob.glob(os.path.join(data_path, "*.jsonl"))
+            self.logger.info(f"데이터 디렉토리: {data_path}")
+            self.logger.info(f"발견된 JSONL 파일들: {jsonl_files}")
+        else:
+            jsonl_files = [data_path]
+            self.logger.info(f"단일 데이터셋 파일: {data_path}")
+        
+        if not jsonl_files:
+            raise ValueError(f"JSONL 파일을 찾을 수 없습니다: {data_path}")
         
         try:
-            # JSONL 파일 읽기
-            data = []
-            with open(data_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if line.strip():
-                        data.append(json.loads(line))
+            # 모든 JSONL 파일에서 데이터 읽기
+            all_data = []
+            for jsonl_file in jsonl_files:
+                self.logger.info(f"파일 로딩: {jsonl_file}")
+                file_data = []
+                
+                with open(jsonl_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if line.strip():
+                            file_data.append(json.loads(line))
+                
+                all_data.extend(file_data)
+                self.logger.info(f"{jsonl_file}: {len(file_data)}개 샘플")
             
-            self.logger.info(f"총 {len(data)}개 샘플 로드")
+            self.logger.info(f"전체 로드된 샘플 수: {len(all_data)}개")
             
             # 데이터 형식 변환 (더 간단하고 안전하게)
             texts = []
-            for item in data:
+            for item in all_data:
                 # 텍스트 길이 제한 및 정제
                 text = item['text'][:500]  # 500자 제한
                 if len(text.strip()) > 10:  # 최소 길이를 10자로 완화
@@ -181,7 +200,7 @@ class GPTOSSFineTuner:
     def setup_training_args(self, 
                           output_dir: str = "./results",
                           num_train_epochs: int = 1,
-                          per_device_train_batch_size: int = 2,
+                          per_device_train_batch_size: int = 1,
                           gradient_accumulation_steps: int = 4,
                           learning_rate: float = 2e-4,
                           warmup_steps: int = 5,
@@ -343,16 +362,16 @@ class GPTOSSFineTuner:
 def main():
     """메인 실행 함수"""
     parser = argparse.ArgumentParser(description="Ollama GPT-OSS-20B Korean Fine-tuning")
-    parser.add_argument("--data-path", type=str, default="data/korean_wikipedia_data.jsonl",
-                       help="훈련 데이터 경로")
+    parser.add_argument("--data-path", type=str, default="data/",
+                       help="훈련 데이터 경로 (디렉토리 또는 JSONL 파일)")
     parser.add_argument("--model-name", type=str, default="microsoft/DialoGPT-medium",
                        help="베이스 모델 이름")
     parser.add_argument("--output-dir", type=str, default="my_korean_gpt_oss_20b_lora",
                        help="출력 디렉토리")
     parser.add_argument("--epochs", type=int, default=1,
                        help="훈련 에포크 수")
-    parser.add_argument("--batch-size", type=int, default=2,
-                       help="배치 크기")
+    parser.add_argument("--batch-size", type=int, default=1,
+                       help="배치 크기 (20B 모델용 최적화)")
     parser.add_argument("--learning-rate", type=float, default=2e-4,
                        help="학습률")
     parser.add_argument("--max-seq-length", type=int, default=2048,
@@ -384,7 +403,7 @@ def main():
         if not args.test_only:
             # 데이터셋 로드
             if not Path(args.data_path).exists():
-                print(f"❌ 데이터 파일을 찾을 수 없습니다: {args.data_path}")
+                print(f"❌ 데이터 경로를 찾을 수 없습니다: {args.data_path}")
                 print("💡 먼저 다음 명령어로 데이터를 수집하세요:")
                 print("   python scrape_wiki.py --max-articles 50")
                 sys.exit(1)

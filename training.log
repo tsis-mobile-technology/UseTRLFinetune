@@ -104,3 +104,301 @@ Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
 2025-08-16 12:55:19,650 - INFO - 추론 테스트 시작
 2025-08-16 12:55:19,725 - INFO - 입력: 위키백과는 
 2025-08-16 12:55:19,725 - INFO - 출력: 위키백과는 izg
+2025-08-16 20:05:02,248 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 20:05:02,248 - INFO - VRAM: 11.6GB
+2025-08-16 20:05:02,248 - INFO - 모델 로딩 시작: openai/gpt-oss-20b
+2025-08-16 20:08:42,429 - ERROR - 모델 로드 실패: Some modules are dispatched on the CPU or the disk. Make sure you have enough GPU RAM to fit the quantized model. If you want to dispatch the model on the CPU or the disk while keeping these modules in 32-bit, you need to set `llm_int8_enable_fp32_cpu_offload=True` and pass a custom `device_map` to `from_pretrained`. Check https://huggingface.co/docs/transformers/main/en/main_classes/quantization#offload-between-cpu-and-gpu for more details. 
+2025-08-16 20:11:49,648 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 20:11:49,648 - INFO - VRAM: 11.6GB
+2025-08-16 20:11:49,649 - INFO - 모델 로딩 시작: openai/gpt-oss-20b
+2025-08-16 20:11:53,440 - ERROR - 모델 로드 실패: GptOssForCausalLM.__init__() got an unexpected keyword argument 'llm_int8_enable_fp32_cpu_offload'
+2025-08-16 20:12:55,211 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 20:12:55,211 - INFO - VRAM: 11.6GB
+2025-08-16 20:12:55,211 - INFO - 모델 로딩 시작: microsoft/DialoGPT-medium
+2025-08-16 20:13:03,019 - INFO - 모델 로드 완료
+2025-08-16 20:13:04,225 - INFO - LoRA 어댑터 적용 완료
+2025-08-16 20:13:04,226 - INFO - GPU 메모리 사용량: 0.3GB / 11.6GB
+2025-08-16 20:13:04,226 - INFO - 데이터셋 로딩: data/korean_wikipedia_data.jsonl
+2025-08-16 20:13:04,227 - INFO - 총 45개 샘플 로드
+2025-08-16 20:13:04,227 - INFO - 유효한 텍스트 45개 선별
+2025-08-16 20:13:05,971 - INFO - 토크나이징 완료: 45 샘플
+2025-08-16 20:13:05,988 - INFO - 훈련 인자 설정 완료
+2025-08-16 20:13:05,988 - INFO - 배치 크기: 2
+2025-08-16 20:13:05,988 - INFO - 그래디언트 누적: 4
+2025-08-16 20:13:05,988 - INFO - 유효 배치 크기: 8
+2025-08-16 20:13:05,988 - INFO - 훈련 시작
+2025-08-16 20:13:06,180 - INFO - 훈련 실행 중...
+2025-08-16 20:13:14,510 - INFO - 훈련 완료! 소요 시간: 8.33초
+2025-08-16 20:13:14,510 - INFO - 최종 Loss: 13.3612
+2025-08-16 20:13:14,510 - INFO - 모델 저장: my_korean_gpt_oss_20b_lora
+2025-08-16 20:13:14,994 - INFO - 모델 저장 완료
+2025-08-16 20:13:14,994 - INFO - 추론 테스트 시작
+2025-08-16 20:13:15,130 - INFO - 입력: 안녕하세요! 
+2025-08-16 20:13:15,130 - INFO - 출력: 안녕하세요! ips
+2025-08-16 20:13:15,130 - INFO - 추론 테스트 시작
+2025-08-16 20:13:15,224 - INFO - 입력: 대한민국의 수도는 
+2025-08-16 20:13:15,224 - INFO - 출력: 대한민국의 수도는 ibanon.
+2025-08-16 20:13:15,224 - INFO - 추론 테스트 시작
+2025-08-16 20:13:15,320 - INFO - 입력: 인공지능이란 
+2025-08-16 20:13:15,320 - INFO - 출력: 인공지능이란 irc.exe
+2025-08-16 20:13:15,320 - INFO - 추론 테스트 시작
+2025-08-16 20:13:15,394 - INFO - 입력: 위키백과는 
+2025-08-16 20:13:15,394 - INFO - 출력: 위키백과는 ive.
+2025-08-16 20:14:23,830 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 20:14:23,830 - INFO - VRAM: 11.6GB
+2025-08-16 20:14:23,830 - INFO - 모델 로딩 시작: microsoft/DialoGPT-medium
+2025-08-16 20:14:31,210 - INFO - 모델 로드 완료
+2025-08-16 20:14:32,355 - INFO - LoRA 어댑터 적용 완료
+2025-08-16 20:14:32,355 - INFO - GPU 메모리 사용량: 0.3GB / 11.6GB
+2025-08-16 20:14:32,355 - INFO - 데이터셋 로딩: data/korean_wikipedia_data.jsonl
+2025-08-16 20:14:32,356 - INFO - 총 45개 샘플 로드
+2025-08-16 20:14:32,356 - INFO - 유효한 텍스트 45개 선별
+2025-08-16 20:14:34,065 - INFO - 토크나이징 완료: 45 샘플
+2025-08-16 20:14:34,081 - INFO - 훈련 인자 설정 완료
+2025-08-16 20:14:34,081 - INFO - 배치 크기: 2
+2025-08-16 20:14:34,081 - INFO - 그래디언트 누적: 4
+2025-08-16 20:14:34,081 - INFO - 유효 배치 크기: 8
+2025-08-16 20:14:34,081 - INFO - 훈련 시작
+2025-08-16 20:14:34,268 - INFO - 훈련 실행 중...
+2025-08-16 20:14:42,746 - INFO - 훈련 완료! 소요 시간: 8.48초
+2025-08-16 20:14:42,746 - INFO - 최종 Loss: 13.3619
+2025-08-16 20:14:42,746 - INFO - 모델 저장: my_korean_gpt_oss_20b_lora
+2025-08-16 20:14:43,304 - INFO - 모델 저장 완료
+2025-08-16 20:14:43,304 - INFO - 추론 테스트 시작
+2025-08-16 20:14:43,438 - INFO - 입력: 안녕하세요! 
+2025-08-16 20:14:43,439 - INFO - 출력: 안녕하세요! ips
+2025-08-16 20:14:43,439 - INFO - 추론 테스트 시작
+2025-08-16 20:14:43,535 - INFO - 입력: 대한민국의 수도는 
+2025-08-16 20:14:43,535 - INFO - 출력: 대한민국의 수도는 ibanon.
+2025-08-16 20:14:43,535 - INFO - 추론 테스트 시작
+2025-08-16 20:14:43,631 - INFO - 입력: 인공지능이란 
+2025-08-16 20:14:43,631 - INFO - 출력: 인공지능이란 irc.exe
+2025-08-16 20:14:43,631 - INFO - 추론 테스트 시작
+2025-08-16 20:14:43,705 - INFO - 입력: 위키백과는 
+2025-08-16 20:14:43,705 - INFO - 출력: 위키백과는 ive.
+2025-08-16 20:15:17,998 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 20:15:17,998 - INFO - VRAM: 11.6GB
+2025-08-16 20:15:17,998 - INFO - 모델 로딩 시작: microsoft/DialoGPT-medium
+2025-08-16 20:15:25,402 - INFO - 모델 로드 완료
+2025-08-16 20:15:26,568 - INFO - LoRA 어댑터 적용 완료
+2025-08-16 20:15:26,568 - INFO - GPU 메모리 사용량: 0.3GB / 11.6GB
+2025-08-16 20:15:26,568 - INFO - 데이터셋 로딩: data/korean_wikipedia_data.jsonl
+2025-08-16 20:15:26,569 - INFO - 총 45개 샘플 로드
+2025-08-16 20:15:26,569 - INFO - 유효한 텍스트 45개 선별
+2025-08-16 20:15:28,296 - INFO - 토크나이징 완료: 45 샘플
+2025-08-16 20:15:28,312 - INFO - 훈련 인자 설정 완료
+2025-08-16 20:15:28,312 - INFO - 배치 크기: 2
+2025-08-16 20:15:28,312 - INFO - 그래디언트 누적: 4
+2025-08-16 20:15:28,312 - INFO - 유효 배치 크기: 8
+2025-08-16 20:15:28,312 - INFO - 훈련 시작
+2025-08-16 20:15:28,495 - INFO - 훈련 실행 중...
+2025-08-16 20:28:16,177 - INFO - 훈련 완료! 소요 시간: 767.68초
+2025-08-16 20:28:16,177 - INFO - 최종 Loss: 2.6768
+2025-08-16 20:28:16,177 - INFO - 모델 저장: my_korean_gpt_oss_20b_lora
+2025-08-16 20:28:16,753 - INFO - 모델 저장 완료
+2025-08-16 20:28:16,753 - INFO - 추론 테스트 시작
+2025-08-16 20:28:18,183 - INFO - 입력: 안녕하세요! 
+2025-08-16 20:28:18,183 - INFO - 출력: 안녕하세요! 군역
+군역 군역 군역 우되계하군록부는 군었�에서
+2025-08-16 20:28:18,183 - INFO - 추론 테스트 시작
+2025-08-16 20:28:19,519 - INFO - 입력: 대한민국의 수도는 
+2025-08-16 20:28:19,519 - INFO - 출력: 대한민국의 수도는 광국국은 호칭의 계한던도 난�서 �해에 국이 비에서 �
+2025-08-16 20:28:19,520 - INFO - 추론 테스트 시작
+2025-08-16 20:28:20,853 - INFO - 입력: 인공지능이란 
+2025-08-16 20:28:20,853 - INFO - 출력: 인공지능이란 군전정 사용하가 배조식동의 사용하가 군정 주국 에사용
+2025-08-16 20:28:20,853 - INFO - 추론 테스트 시작
+2025-08-16 20:28:22,198 - INFO - 입력: 위키백과는 
+2025-08-16 20:28:22,199 - INFO - 출력: 위키백과는 경정, 경려에 �리 남지전의 목북적 공쐘고 다자 경�
+2025-08-16 20:37:24,664 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 20:37:24,664 - INFO - VRAM: 11.6GB
+2025-08-16 20:37:24,664 - INFO - 모델 로딩 시작: microsoft/DialoGPT-medium
+2025-08-16 20:37:32,193 - INFO - 모델 로드 완료
+2025-08-16 20:37:33,347 - INFO - LoRA 어댑터 적용 완료
+2025-08-16 20:37:33,347 - INFO - GPU 메모리 사용량: 0.3GB / 11.6GB
+2025-08-16 20:37:33,348 - INFO - 데이터셋 로딩: data/korean_wikipedia_data.jsonl
+2025-08-16 20:37:33,348 - INFO - 총 45개 샘플 로드
+2025-08-16 20:37:33,349 - INFO - 유효한 텍스트 45개 선별
+2025-08-16 20:37:35,039 - INFO - 토크나이징 완료: 45 샘플
+2025-08-16 20:37:35,055 - INFO - 훈련 인자 설정 완료
+2025-08-16 20:37:35,056 - INFO - 배치 크기: 2
+2025-08-16 20:37:35,056 - INFO - 그래디언트 누적: 4
+2025-08-16 20:37:35,056 - INFO - 유효 배치 크기: 8
+2025-08-16 20:37:35,056 - INFO - 훈련 시작
+2025-08-16 20:37:35,239 - INFO - 훈련 실행 중...
+2025-08-16 21:03:13,019 - INFO - 훈련 완료! 소요 시간: 1537.78초
+2025-08-16 21:03:13,019 - INFO - 최종 Loss: 2.0265
+2025-08-16 21:03:13,020 - INFO - 모델 저장: my_korean_gpt_oss_20b_lora
+2025-08-16 21:03:13,562 - INFO - 모델 저장 완료
+2025-08-16 21:03:13,563 - INFO - 추론 테스트 시작
+2025-08-16 21:03:14,986 - INFO - 입력: 안녕하세요! 
+2025-08-16 21:03:14,986 - INFO - 출력: 안녕하세요! 개반 기계 하메서 술바면서 이도� 소웨터웨
+
+디서�
+2025-08-16 21:03:14,986 - INFO - 추론 테스트 시작
+2025-08-16 21:03:16,316 - INFO - 입력: 대한민국의 수도는 
+2025-08-16 21:03:16,316 - INFO - 출력: 대한민국의 수도는 기기 만나 읬나 생태발 발화딄형 사람이 이생 소프스템
+2025-08-16 21:03:16,316 - INFO - 추론 테스트 시작
+2025-08-16 21:03:17,625 - INFO - 입력: 인공지능이란 
+2025-08-16 21:03:17,625 - INFO - 출력: 인공지능이란 기윴는
+
+능은 상간 인공지능(Microsoft Task creation)일는 WIN 7100,000,000,000 GE committed to AI 역결�
+2025-08-16 21:03:17,625 - INFO - 추론 테스트 시작
+2025-08-16 21:03:18,956 - INFO - 입력: 위키백과는 
+2025-08-16 21:03:18,956 - INFO - 출력: 위키백과는 겸용
+
+백과는 겸용 (Norman English)은 믔마이 겸용어: 賵적 겸용�
+2025-08-16 21:31:25,020 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 21:31:25,021 - INFO - VRAM: 11.6GB
+2025-08-16 21:31:25,021 - INFO - 모델 로딩 시작: microsoft/DialoGPT-medium
+2025-08-16 21:31:32,710 - INFO - 모델 로드 완료
+2025-08-16 21:31:33,871 - INFO - LoRA 어댑터 적용 완료
+2025-08-16 21:31:33,871 - INFO - GPU 메모리 사용량: 0.3GB / 11.6GB
+2025-08-16 21:31:33,871 - INFO - 데이터 디렉토리: ./data
+2025-08-16 21:31:33,871 - INFO - 발견된 JSONL 파일들: ['./data/korean_wikipedia_data.jsonl', './data/science_data.jsonl', './data/politics_data.jsonl', './data/history_data.jsonl']
+2025-08-16 21:31:33,871 - INFO - 파일 로딩: ./data/korean_wikipedia_data.jsonl
+2025-08-16 21:31:33,872 - INFO - ./data/korean_wikipedia_data.jsonl: 45개 샘플
+2025-08-16 21:31:33,873 - INFO - 파일 로딩: ./data/science_data.jsonl
+2025-08-16 21:31:33,873 - INFO - ./data/science_data.jsonl: 2개 샘플
+2025-08-16 21:31:33,873 - INFO - 파일 로딩: ./data/politics_data.jsonl
+2025-08-16 21:31:33,873 - INFO - ./data/politics_data.jsonl: 14개 샘플
+2025-08-16 21:31:33,873 - INFO - 파일 로딩: ./data/history_data.jsonl
+2025-08-16 21:31:33,874 - INFO - ./data/history_data.jsonl: 26개 샘플
+2025-08-16 21:31:33,874 - INFO - 전체 로드된 샘플 수: 87개
+2025-08-16 21:31:33,874 - INFO - 유효한 텍스트 87개 선별
+2025-08-16 21:31:35,609 - INFO - 토크나이징 완료: 87 샘플
+2025-08-16 21:31:35,625 - INFO - 훈련 인자 설정 완료
+2025-08-16 21:31:35,625 - INFO - 배치 크기: 2
+2025-08-16 21:31:35,625 - INFO - 그래디언트 누적: 4
+2025-08-16 21:31:35,625 - INFO - 유효 배치 크기: 8
+2025-08-16 21:31:35,625 - INFO - 훈련 시작
+2025-08-16 21:31:35,812 - INFO - 훈련 실행 중...
+2025-08-16 21:55:22,897 - INFO - GPU: NVIDIA GeForce RTX 3060
+2025-08-16 21:55:22,897 - INFO - VRAM: 11.6GB
+2025-08-16 21:55:22,897 - INFO - 모델 로딩 시작: microsoft/DialoGPT-medium
+2025-08-16 21:55:30,568 - INFO - 모델 로드 완료
+2025-08-16 21:55:31,746 - INFO - LoRA 어댑터 적용 완료
+2025-08-16 21:55:31,746 - INFO - GPU 메모리 사용량: 0.3GB / 11.6GB
+2025-08-16 21:55:31,746 - INFO - 데이터 디렉토리: ./data
+2025-08-16 21:55:31,747 - INFO - 발견된 JSONL 파일들: ['./data/science_general.jsonl', './data/politics_international.jsonl', './data/korean_wikipedia_data.jsonl', './data/economy_finance.jsonl', './data/science_biology.jsonl', './data/science_earth.jsonl', './data/society_linguistics.jsonl', './data/history_korea.jsonl', './data/geography_asia.jsonl', './data/art_literature.jsonl', './data/society_education.jsonl', './data/society_korea.jsonl', './data/society_law.jsonl', './data/tech_computer_science.jsonl', './data/tech_ai.jsonl', './data/politics_korean_parties.jsonl', './data/politics_korea.jsonl', './data/nature_geology.jsonl', './data/society_philosophy.jsonl', './data/society_psychology.jsonl', './data/history_goryeo.jsonl', './data/history_colonial_era.jsonl', './data/science_medicine.jsonl', './data/science_data.jsonl', './data/culture_religion.jsonl', './data/culture_mythology.jsonl', './data/science_chemistry.jsonl', './data/history_joseon.jsonl', './data/economy_economics.jsonl', './data/culture_korean_food.jsonl', './data/nature_plants.jsonl', './data/geography_korea.jsonl', './data/art_general.jsonl', './data/politics_data.jsonl', './data/nature_animals.jsonl', './data/art_film.jsonl', './data/science_physics.jsonl', './data/culture_kpop.jsonl', './data/nature_climate.jsonl', './data/art_architecture.jsonl', './data/history_data.jsonl', './data/society_sociology.jsonl', './data/tech_space.jsonl', './data/society_environment.jsonl', './data/society_festivals.jsonl', './data/society_sports.jsonl', './data/economy_korea.jsonl', './data/art_music.jsonl']
+2025-08-16 21:55:31,747 - INFO - 파일 로딩: ./data/science_general.jsonl
+2025-08-16 21:55:31,747 - INFO - ./data/science_general.jsonl: 2개 샘플
+2025-08-16 21:55:31,747 - INFO - 파일 로딩: ./data/politics_international.jsonl
+2025-08-16 21:55:31,747 - INFO - ./data/politics_international.jsonl: 13개 샘플
+2025-08-16 21:55:31,747 - INFO - 파일 로딩: ./data/korean_wikipedia_data.jsonl
+2025-08-16 21:55:31,748 - INFO - ./data/korean_wikipedia_data.jsonl: 45개 샘플
+2025-08-16 21:55:31,748 - INFO - 파일 로딩: ./data/economy_finance.jsonl
+2025-08-16 21:55:31,748 - INFO - ./data/economy_finance.jsonl: 9개 샘플
+2025-08-16 21:55:31,748 - INFO - 파일 로딩: ./data/science_biology.jsonl
+2025-08-16 21:55:31,749 - INFO - ./data/science_biology.jsonl: 17개 샘플
+2025-08-16 21:55:31,749 - INFO - 파일 로딩: ./data/science_earth.jsonl
+2025-08-16 21:55:31,749 - INFO - ./data/science_earth.jsonl: 23개 샘플
+2025-08-16 21:55:31,749 - INFO - 파일 로딩: ./data/society_linguistics.jsonl
+2025-08-16 21:55:31,750 - INFO - ./data/society_linguistics.jsonl: 18개 샘플
+2025-08-16 21:55:31,750 - INFO - 파일 로딩: ./data/history_korea.jsonl
+2025-08-16 21:55:31,751 - INFO - ./data/history_korea.jsonl: 26개 샘플
+2025-08-16 21:55:31,751 - INFO - 파일 로딩: ./data/geography_asia.jsonl
+2025-08-16 21:55:31,751 - INFO - ./data/geography_asia.jsonl: 9개 샘플
+2025-08-16 21:55:31,751 - INFO - 파일 로딩: ./data/art_literature.jsonl
+2025-08-16 21:55:31,751 - INFO - ./data/art_literature.jsonl: 14개 샘플
+2025-08-16 21:55:31,751 - INFO - 파일 로딩: ./data/society_education.jsonl
+2025-08-16 21:55:31,752 - INFO - ./data/society_education.jsonl: 18개 샘플
+2025-08-16 21:55:31,752 - INFO - 파일 로딩: ./data/society_korea.jsonl
+2025-08-16 21:55:31,752 - INFO - ./data/society_korea.jsonl: 20개 샘플
+2025-08-16 21:55:31,752 - INFO - 파일 로딩: ./data/society_law.jsonl
+2025-08-16 21:55:31,753 - INFO - ./data/society_law.jsonl: 9개 샘플
+2025-08-16 21:55:31,753 - INFO - 파일 로딩: ./data/tech_computer_science.jsonl
+2025-08-16 21:55:31,753 - INFO - ./data/tech_computer_science.jsonl: 16개 샘플
+2025-08-16 21:55:31,753 - INFO - 파일 로딩: ./data/tech_ai.jsonl
+2025-08-16 21:55:31,753 - INFO - ./data/tech_ai.jsonl: 23개 샘플
+2025-08-16 21:55:31,753 - INFO - 파일 로딩: ./data/politics_korean_parties.jsonl
+2025-08-16 21:55:31,754 - INFO - ./data/politics_korean_parties.jsonl: 11개 샘플
+2025-08-16 21:55:31,754 - INFO - 파일 로딩: ./data/politics_korea.jsonl
+2025-08-16 21:55:31,754 - INFO - ./data/politics_korea.jsonl: 14개 샘플
+2025-08-16 21:55:31,754 - INFO - 파일 로딩: ./data/nature_geology.jsonl
+2025-08-16 21:55:31,755 - INFO - ./data/nature_geology.jsonl: 19개 샘플
+2025-08-16 21:55:31,755 - INFO - 파일 로딩: ./data/society_philosophy.jsonl
+2025-08-16 21:55:31,755 - INFO - ./data/society_philosophy.jsonl: 16개 샘플
+2025-08-16 21:55:31,755 - INFO - 파일 로딩: ./data/society_psychology.jsonl
+2025-08-16 21:55:31,755 - INFO - ./data/society_psychology.jsonl: 19개 샘플
+2025-08-16 21:55:31,755 - INFO - 파일 로딩: ./data/history_goryeo.jsonl
+2025-08-16 21:55:31,756 - INFO - ./data/history_goryeo.jsonl: 25개 샘플
+2025-08-16 21:55:31,756 - INFO - 파일 로딩: ./data/history_colonial_era.jsonl
+2025-08-16 21:55:31,757 - INFO - ./data/history_colonial_era.jsonl: 26개 샘플
+2025-08-16 21:55:31,757 - INFO - 파일 로딩: ./data/science_medicine.jsonl
+2025-08-16 21:55:31,757 - INFO - ./data/science_medicine.jsonl: 14개 샘플
+2025-08-16 21:55:31,757 - INFO - 파일 로딩: ./data/science_data.jsonl
+2025-08-16 21:55:31,757 - INFO - ./data/science_data.jsonl: 2개 샘플
+2025-08-16 21:55:31,757 - INFO - 파일 로딩: ./data/culture_religion.jsonl
+2025-08-16 21:55:31,757 - INFO - ./data/culture_religion.jsonl: 14개 샘플
+2025-08-16 21:55:31,757 - INFO - 파일 로딩: ./data/culture_mythology.jsonl
+2025-08-16 21:55:31,758 - INFO - ./data/culture_mythology.jsonl: 17개 샘플
+2025-08-16 21:55:31,758 - INFO - 파일 로딩: ./data/science_chemistry.jsonl
+2025-08-16 21:55:31,758 - INFO - ./data/science_chemistry.jsonl: 16개 샘플
+2025-08-16 21:55:31,758 - INFO - 파일 로딩: ./data/history_joseon.jsonl
+2025-08-16 21:55:31,758 - INFO - ./data/history_joseon.jsonl: 26개 샘플
+2025-08-16 21:55:31,759 - INFO - 파일 로딩: ./data/economy_economics.jsonl
+2025-08-16 21:55:31,759 - INFO - ./data/economy_economics.jsonl: 13개 샘플
+2025-08-16 21:55:31,759 - INFO - 파일 로딩: ./data/culture_korean_food.jsonl
+2025-08-16 21:55:31,759 - INFO - ./data/culture_korean_food.jsonl: 14개 샘플
+2025-08-16 21:55:31,759 - INFO - 파일 로딩: ./data/nature_plants.jsonl
+2025-08-16 21:55:31,759 - INFO - ./data/nature_plants.jsonl: 13개 샘플
+2025-08-16 21:55:31,759 - INFO - 파일 로딩: ./data/geography_korea.jsonl
+2025-08-16 21:55:31,760 - INFO - ./data/geography_korea.jsonl: 10개 샘플
+2025-08-16 21:55:31,760 - INFO - 파일 로딩: ./data/art_general.jsonl
+2025-08-16 21:55:31,760 - INFO - ./data/art_general.jsonl: 19개 샘플
+2025-08-16 21:55:31,760 - INFO - 파일 로딩: ./data/politics_data.jsonl
+2025-08-16 21:55:31,761 - INFO - ./data/politics_data.jsonl: 14개 샘플
+2025-08-16 21:55:31,761 - INFO - 파일 로딩: ./data/nature_animals.jsonl
+2025-08-16 21:55:31,761 - INFO - ./data/nature_animals.jsonl: 4개 샘플
+2025-08-16 21:55:31,761 - INFO - 파일 로딩: ./data/art_film.jsonl
+2025-08-16 21:55:31,761 - INFO - ./data/art_film.jsonl: 2개 샘플
+2025-08-16 21:55:31,761 - INFO - 파일 로딩: ./data/science_physics.jsonl
+2025-08-16 21:55:31,761 - INFO - ./data/science_physics.jsonl: 18개 샘플
+2025-08-16 21:55:31,761 - INFO - 파일 로딩: ./data/culture_kpop.jsonl
+2025-08-16 21:55:31,762 - INFO - ./data/culture_kpop.jsonl: 12개 샘플
+2025-08-16 21:55:31,762 - INFO - 파일 로딩: ./data/nature_climate.jsonl
+2025-08-16 21:55:31,762 - INFO - ./data/nature_climate.jsonl: 22개 샘플
+2025-08-16 21:55:31,762 - INFO - 파일 로딩: ./data/art_architecture.jsonl
+2025-08-16 21:55:31,762 - INFO - ./data/art_architecture.jsonl: 17개 샘플
+2025-08-16 21:55:31,762 - INFO - 파일 로딩: ./data/history_data.jsonl
+2025-08-16 21:55:31,763 - INFO - ./data/history_data.jsonl: 26개 샘플
+2025-08-16 21:55:31,763 - INFO - 파일 로딩: ./data/society_sociology.jsonl
+2025-08-16 21:55:31,764 - INFO - ./data/society_sociology.jsonl: 15개 샘플
+2025-08-16 21:55:31,764 - INFO - 파일 로딩: ./data/tech_space.jsonl
+2025-08-16 21:55:31,764 - INFO - ./data/tech_space.jsonl: 2개 샘플
+2025-08-16 21:55:31,764 - INFO - 파일 로딩: ./data/society_environment.jsonl
+2025-08-16 21:55:31,764 - INFO - ./data/society_environment.jsonl: 18개 샘플
+2025-08-16 21:55:31,764 - INFO - 파일 로딩: ./data/society_festivals.jsonl
+2025-08-16 21:55:31,764 - INFO - ./data/society_festivals.jsonl: 1개 샘플
+2025-08-16 21:55:31,764 - INFO - 파일 로딩: ./data/society_sports.jsonl
+2025-08-16 21:55:31,764 - INFO - ./data/society_sports.jsonl: 10개 샘플
+2025-08-16 21:55:31,764 - INFO - 파일 로딩: ./data/economy_korea.jsonl
+2025-08-16 21:55:31,765 - INFO - ./data/economy_korea.jsonl: 11개 샘플
+2025-08-16 21:55:31,765 - INFO - 파일 로딩: ./data/art_music.jsonl
+2025-08-16 21:55:31,765 - INFO - ./data/art_music.jsonl: 2개 샘플
+2025-08-16 21:55:31,765 - INFO - 전체 로드된 샘플 수: 724개
+2025-08-16 21:55:31,765 - INFO - 유효한 텍스트 724개 선별
+2025-08-16 21:55:33,577 - INFO - 토크나이징 완료: 724 샘플
+2025-08-16 21:55:33,593 - INFO - 훈련 인자 설정 완료
+2025-08-16 21:55:33,593 - INFO - 배치 크기: 2
+2025-08-16 21:55:33,593 - INFO - 그래디언트 누적: 4
+2025-08-16 21:55:33,593 - INFO - 유효 배치 크기: 8
+2025-08-16 21:55:33,593 - INFO - 훈련 시작
+2025-08-16 21:55:33,783 - INFO - 훈련 실행 중...
+2025-08-17 01:24:26,237 - INFO - 훈련 완료! 소요 시간: 12532.45초
+2025-08-17 01:24:26,237 - INFO - 최종 Loss: 1.4679
+2025-08-17 01:24:26,237 - INFO - 모델 저장: my_korean_gpt_oss_20b_lora
+2025-08-17 01:24:26,794 - INFO - 모델 저장 완료
+2025-08-17 01:24:26,795 - INFO - 추론 테스트 시작
+2025-08-17 01:24:28,477 - INFO - 입력: 안녕하세요! 
+2025-08-17 01:24:28,477 - INFO - 출력: 안녕하세요! 개꽁으로써 만든 속셜는 지역 반드와 선제행정을 포�
+2025-08-17 01:24:28,477 - INFO - 추론 테스트 시작
+2025-08-17 01:24:30,072 - INFO - 입력: 대한민국의 수도는 
+2025-08-17 01:24:30,072 - INFO - 출력: 대한민국의 수도는 고속에 따라 번째를 통해 펼스트너이드 지배에 해수�
+2025-08-17 01:24:30,072 - INFO - 추론 테스트 시작
+2025-08-17 01:24:31,672 - INFO - 입력: 인공지능이란 
+2025-08-17 01:24:31,673 - INFO - 출력: 인공지능이란 튘변설트
+튘변설트(영어: Metricorn)는 튘변설트(고려 개
+2025-08-17 01:24:31,673 - INFO - 추론 테스트 시작
+2025-08-17 01:24:33,275 - INFO - 입력: 위키백과는 
+2025-08-17 01:24:33,275 - INFO - 출력: 위키백과는 같은 세계적 황시민주에 세계도 황시민주주의사이며

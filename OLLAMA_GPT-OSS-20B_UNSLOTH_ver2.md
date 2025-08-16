@@ -15,7 +15,7 @@
 - 🎯 **Ollama 통합**: `convert_to_gguf.py` (GGUF 변환 및 Ollama 통합)
 - ⚡ **호환성 해결**: xformers CUDA 12.8 호환성 문제 해결 가이드
 
----
+--- 
 
 ### ✅ 1단계: 환경 설정 (Environment Setup)
 
@@ -58,7 +58,7 @@
     - TRL: 0.21.0
     - bitsandbytes: 0.47.0
 
----
+--- 
 
 ### ✅ 2단계: 데이터 수집 및 전처리 (Data Collection & Preprocessing)
 
@@ -114,7 +114,7 @@
     ```
   - 파일명: `korean_wikipedia_data.jsonl`
 
----
+--- 
 
 ### ✅ 3단계: Fine-tuning 스크립트 작성 (Script Development)
 
@@ -167,7 +167,7 @@
   - `trl`의 `SFTTrainer`를 사용하여 학습 과정을 관리합니다.
   - `dataset_text_field="text"`로 `jsonl` 파일의 "text" 키를 지정합니다.
 
----
+--- 
 
 ### ✅ 4단계: 학습 실행 및 테스트 (Execution & Testing)
 
@@ -192,7 +192,7 @@
     # "인공지능이란" → "인공지능이란 eryong korean."
     ```
 
----
+--- 
 
 ### ✅ 5단계: (선택) 모델 저장 및 활용 (Saving & Usage)
 
@@ -230,7 +230,7 @@
     ollama run korean-gpt-oss-20b "안녕하세요!"
     ```
 
----
+--- 
 
 ## 🎉 프로젝트 완료 요약
 
@@ -269,6 +269,7 @@
 - **해결 방안**: 더 작은 모델 사용으로 성능과 안정성 확보
 
 **🎯 권장 모델 (RTX 3060 최적화):**
+
 1. **microsoft/DialoGPT-medium** (추천 ⭐)
    - 크기: 345M 매개변수
    - 메모리 사용량: ~2GB VRAM
@@ -404,7 +405,7 @@ python test_gpt_oss_20b.py
 
   - Learning Rate: 1e-5 ~ 5e-6 (50-75% 감소)
   - Epochs: 1 (과적합 방지)
-  - Early Stopping 고려
+  - Early Stopping 권장
   - Validation Split 권장
 
   🎛️ 고급 전략
@@ -425,7 +426,7 @@ python test_gpt_oss_20b.py
 
   이 방식으로 모듈화된 전문성을 구축하면서 기존 지식 보존과 새로운 도메인 학습을 동시에 달성할 수 있습니다.
 
-> 위 내용에서 추론시 어댑터 선택을 한다는게 무슨 소리 인지? 어떻게 추론시 사용한다는건지?
+> 추론시 어댑터 선택을 한다는게 무슨 소리 인지? 어떻게 추론시 사용한다는건지?
 
 ● 추론시 어댑터 선택의 의미와 한계
 
@@ -605,4 +606,3 @@ python test_gpt_oss_20b.py
   - 완전한 병합: LoRA → 표준 모델 변환
 
   이제 여러 도메인별 어댑터들을 하나의 통합 모델로 만들어 단일 실행으로 모든 전문 지식을 활용할 수 있습니다!
-
