@@ -8,9 +8,12 @@
 
 **💡 추가 구현된 도구들:**
 - 🔧 **환경 자동화**: `setup_environment.py`, `check_environment.py`, `activate_env.sh`
-- 📊 **데이터 수집**: `scrape_wiki.py` (병렬 처리, 에러 핸들링, 품질 관리)
+- 📊 **데이터 수집**: `scrape_wiki.py` (병렬 처리, 에러 핸들링, 품질 관리) + `scrape_wiki_custom.py` (커스터마이즈 가능한 고급 스크래퍼)
 - 🚀 **원클릭 훈련**: `run_training.sh` (매개변수 커스터마이징 지원)
 - 📋 **종합 요구사항**: `requirements.txt` (RTX 3060 최적화 버전)
+- 🔗 **모델 병합**: `simple_merge_model.py` (LoRA 어댑터 병합 도구)
+- 🎯 **Ollama 통합**: `convert_to_gguf.py` (GGUF 변환 및 Ollama 통합)
+- ⚡ **호환성 해결**: xformers CUDA 12.8 호환성 문제 해결 가이드
 
 ---
 
@@ -39,20 +42,64 @@
   - ✅ **완료**: Unsloth 2025.8.6, PyTorch 2.8.0, 모든 의존성 설치 완료
   - *Unsloth는 최신 버전을 사용하는 것이 중요하며, `bitsandbytes`는 4-bit 양자화에 필수적입니다.*
 
+- [x] **⚠️ xformers 호환성 문제 해결**
+  - **문제**: CUDA 12.8과 xformers 소스 코드 컴파일 시 `cuda::atomic_ref` 관련 오류 발생
+  - **해결**: 사전 컴파일된 xformers 사용으로 호환성 문제 우회
+  ```bash
+  # 호환성 문제 발생 시 다음 명령어로 해결
+  pip install --force-reinstall --no-deps xformers --index-url https://download.pytorch.org/whl/cu121
+  pip install trl peft accelerate bitsandbytes
+  ```
+  - ✅ **설치된 패키지 버전**:
+    - PyTorch: 2.8.0+cu128
+    - xformers: 0.0.29.post1 (사전 컴파일됨)
+    - Transformers: 4.55.2
+    - PEFT: 0.17.0
+    - TRL: 0.21.0
+    - bitsandbytes: 0.47.0
+
 ---
 
 ### ✅ 2단계: 데이터 수집 및 전처리 (Data Collection & Preprocessing)
 
 - [x] **웹 스크래핑 스크립트 구상**
-  - ✅ **완료**: `scrape_wiki.py` 고급 스크래퍼 구현
+  - ✅ **완료**: `scrape_wiki.py` 기본 스크래퍼 + `scrape_wiki_custom.py` 고급 스크래퍼 구현
   - 병렬 처리, 에러 핸들링, 재시도 로직, 진행률 모니터링 포함
-  - `requests`로 웹 페이지 HTML을 가져오고, `BeautifulSoup4`로 파싱하여 텍스트를 추출하는 파이썬 스크립트(`scrape_wiki.py`)를 작성할 계획입니다.
+  - `requests`로 웹 페이지 HTML을 가져오고, `BeautifulSoup4`로 파싱하여 텍스트를 추출하는 파이썬 스크립트 구현
 
 - [x] **위키피디아 데이터 스크래핑**
   - ✅ **완료**: 9개 문서 수집 (총 49,813자, 평균 5,535자/문서)
-  - 목표 URL: `https://ko.wikipedia.org/wiki/%EC%9C%84%ED%82%A4%EB%B0%B1%EA%B3%BC:%EB%8C%80%EB%AC%B8`
-  - 대문 페이지에 있는 주요 문서 링크들을 수집합니다.
-  - 수집된 링크를 순회하며 각 문서의 본문 내용을 추출합니다.
+  - **기본 사용법**: `python scrape_wiki.py --max-articles 50`
+  - **커스텀 사용법**: 
+    ```bash
+    # 특정 페이지에서 수집
+    python scrape_wiki_custom.py --source-type url --source-value "https://ko.wikipedia.org/wiki/한국사"
+    
+    # 카테고리에서 수집  
+    python scrape_wiki_custom.py --source-type category --source-value "한국의_역사"
+    
+    # 검색어로 수집
+    python scrape_wiki_custom.py --source-type search --source-value "인공지능"
+    ```
+  - 다양한 소스(URL, 카테고리, 검색어)에서 맞춤형 데이터 수집 가능
+
+- [x] **🎯 특화된 데이터 수집 가이드**
+  - ✅ **다양한 주제별 데이터 수집 예시**:
+    ```bash
+    # 역사 데이터 수집
+    python scrape_wiki_custom.py --source-type category --source-value "한국의_역사" --max-articles 30 --output history_data.jsonl
+    
+    # 과학 기술 데이터 수집
+    python scrape_wiki_custom.py --source-type category --source-value "과학" --max-articles 25 --output science_data.jsonl
+    
+    # 문화 예술 데이터 수집
+    python scrape_wiki_custom.py --source-type category --source-value "한국_문화" --max-articles 20 --output culture_data.jsonl
+    
+    # 정치 경제 데이터 수집
+    python scrape_wiki_custom.py --source-type search --source-value "대한민국 정치" --max-articles 15 --output politics_data.jsonl
+    ```
+  - **주요 기능**: 다양한 소스, 병렬 처리, 품질 관리, 로깅, 커스텀 출력
+  - **매개변수**: `--max-articles`, `--delay`, `--workers`, `--output`, `--source-type`, `--source-value`
 
 - [x] **데이터 정제 (Cleaning)**
   - ✅ **완료**: 지능적 텍스트 정제 구현 (HTML 태그, 위키 문법, 참조 제거)
@@ -189,6 +236,7 @@
 
 **✅ 성공적으로 완료된 항목들:**
 - 🔧 환경 설정 자동화 (RTX 3060 최적화)
+- ⚡ xformers CUDA 12.8 호환성 문제 해결
 - 📊 한국어 데이터 수집 및 전처리
 - 🚀 Unsloth 기반 Fine-tuning 스크립트 구현
 - 💾 LoRA 어댑터 훈련 및 저장 (24MB)
@@ -205,7 +253,8 @@
 **🛠️ 구현된 도구들:**
 - `setup_environment.py` - 환경 자동 설정
 - `check_environment.py` - 환경 검증
-- `scrape_wiki.py` - 고급 데이터 수집
+- `scrape_wiki.py` - 기본 위키피디아 데이터 수집
+- `scrape_wiki_custom.py` - 커스터마이즈 가능한 고급 데이터 수집 (URL/카테고리/검색어 지원)
 - `ollama_gpt-oss-20b_unsloth.py` - 완전한 fine-tuning 파이프라인
 - `simple_merge_model.py` - LoRA 어댑터 병합 도구
 - `convert_to_gguf.py` - GGUF 변환 및 Ollama 통합 도구
